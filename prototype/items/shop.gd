@@ -6,9 +6,9 @@ var game:Node
 var item_button_preload = preload("res://ui/buttons/item_button.tscn")
 var cleared =false
 
-onready var container = get_node("scroll_container/container")
-onready var equip_items = container.get_node("equip_items")
-onready var consumable_items = container.get_node("consumable_items")
+@onready var container = get_node("scroll_container/container")
+@onready var equip_items = container.get_node("equip_items")
+@onready var consumable_items = container.get_node("consumable_items")
 
 var blacksmiths
 
@@ -176,7 +176,7 @@ func _ready():
 
 	disable_all()
 
-	yield(get_tree(), "idle_frame")
+	await get_tree().idle_frame
 
 
 func clear():
@@ -194,7 +194,7 @@ func clear():
 
 func add_item(item):
 	item.sell_price = floor(item.price / 2)
-	var new_item_button = item_button_preload.instance()
+	var new_item_button = item_button_preload.instantiate()
 	new_item_button.shop_item = true
 	if item.type == "consumable": consumable_items.add_child(new_item_button)
 	else: equip_items.add_child(new_item_button)
@@ -249,7 +249,7 @@ func update_buttons():
 		if not close_to_blacksmith(leader):
 			disable_equip()
 
-		# enable/disable buttons on which leader don't have enough golds
+		# enable/disable buttons checked which leader don't have enough golds
 		var inventory = game.ui.inventories.get_leader_inventory(leader)
 		if leader and inventory:
 			for item_button in equip_items.get_children() + consumable_items.get_children():

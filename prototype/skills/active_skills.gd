@@ -1,8 +1,8 @@
 extends ItemList
 
-onready var _game: Node = get_tree().get_current_scene()
-onready var _skill_buttons = $placeholder.get_children()
-onready var _tip = $tip
+@onready var _game: Node = get_tree().get_current_scene()
+@onready var _skill_buttons = $placeholder.get_children()
+@onready var _tip = $tip
 
 var player_leaders_skills = {}
 var enemy_leaders_skills = {}
@@ -15,9 +15,9 @@ class ActiveSkill:
 	var description
 	var cooldown: int
 	var current_cooldown: int
-	var effects: Array # array of skill effects, looks like [FuncRef, FuncRef, ..]
+	var effects: Array # array of skill effects, looks like [Callable, Callable, ..]
 	
-	func _init(_display_name, _description, _cooldown, _effects):
+	func _init(_display_name,_description,_cooldown,_effects):
 		self.display_name = _display_name
 		self.description = _description
 		self.cooldown = _cooldown
@@ -42,7 +42,7 @@ func _get_units_in_radius(unit, radius):
 # Async func to get player point target
 func _get_point_target():
 	self._waiting_for_point = true
-	var point = yield(self, "point")
+	var point = await self.point
 	self._waiting_for_point = false
 	return point
 # ^ ^ ^
@@ -67,8 +67,8 @@ func rollo_basic():
 # Example how to write code for point target skill
 func robin_special():
 	var leader = _game.selected_leader
-	# Wait for player to click on map to get x and y position
-	var point_target = yield(_get_point_target(), "completed")
+	# Wait for player to click checked map to get x and y position
+	var point_target = await _get_point_target().completed
 	# If player did not clicked then return false, means skill wasn't used and 
 	# we didn't want to apply cooldown
 	if point_target == null:

@@ -37,7 +37,7 @@ const order_types = {
 }
 
 const hint_tooltips_tactics = {
-	"retreat": "Retreats on first hit",
+	"retreat": "Retreats checked first hit",
 	"defend": "Retreats if less than half HP",
 	"default": "Retreats if less than third HP",
 	"attack": "Never retreats"
@@ -81,7 +81,7 @@ const hint_keys_up = ["q","w","e","r"]
 const hint_keys_down = ["a","s","d","f"]
 
 
-onready var container = get_node("scroll_container/container")
+@onready var container = get_node("scroll_container/container")
 
 func _ready():
 	game = get_tree().get_current_scene()
@@ -191,9 +191,9 @@ func setup_gold(orders):
 	orders.node.add_child(buttons_container)
 	var index = 0
 	for order in order_types.gold:
-		var button = button_template.instance()
+		var button = button_template.instantiate()
 		buttons_container.add_child(button)
-		button.hint_tooltip = hint_tooltips_gold[order]
+		button.tooltip_text = hint_tooltips_gold[order]
 		button.orders = {
 			"order": orders,
 			"type": "gold",
@@ -233,9 +233,9 @@ func setup_pawn_upgrades(orders):
 	orders.node.add_child(buttons_container)
 	var index = 0
 	for upgrade in order_types.pawn_upgrades:
-		var button = button_template.instance()
+		var button = button_template.instantiate()
 		buttons_container.add_child(button)
-		button.hint_tooltip = hint_tooltips_pawn_upgrades[upgrade]
+		button.tooltip_text = hint_tooltips_pawn_upgrades[upgrade]
 		button.orders = {
 			"order": orders,
 			"type": "pawn_upgrades",
@@ -276,9 +276,9 @@ func setup_lumberjack(orders):
 	orders.node.add_child(buttons_container)
 	var index = 0
 	for order in order_types.lumberjack:
-		var button = button_template.instance()
+		var button = button_template.instantiate()
 		buttons_container.add_child(button)
-		button.hint_tooltip = hint_tooltips_lumberjack[order]
+		button.tooltip_text = hint_tooltips_lumberjack[order]
 		button.orders = {
 			"order": orders,
 			"type": "lumberjack",
@@ -318,9 +318,9 @@ func setup_hire(orders):
 	orders.node.add_child(buttons_container)
 	var index = 0
 	for hire in order_types.camp_hire:
-		var button = button_template.instance()
+		var button = button_template.instantiate()
 		buttons_container.add_child(button)
-		button.hint_tooltip = hint_tooltips_hire[hire]
+		button.tooltip_text = hint_tooltips_hire[hire]
 		button.orders = {
 			"order": orders,
 			"type": "camp_hire",
@@ -330,7 +330,7 @@ func setup_hire(orders):
 		index += 1
 		setup_order_button(button)
 		if hire == "melee":
-			button.pressed = true
+			button.button_pressed = true
 			button.disabled = true
 	orders.node.add_child(HSeparator.new())
 
@@ -363,9 +363,9 @@ func setup_tower_upgrades(orders):
 	orders.node.add_child(buttons_container)
 	var index = 0
 	for upgrade in order_types.tower_upgrades:
-		var button = button_template.instance()
+		var button = button_template.instantiate()
 		buttons_container.add_child(button)
-		button.hint_tooltip = hint_tooltips_tower_upgrades[upgrade]
+		button.tooltip_text = hint_tooltips_tower_upgrades[upgrade]
 		button.orders = {
 			"order": orders,
 			"type": "tower_upgrades",
@@ -384,10 +384,10 @@ func setup_taxes(orders):
 	orders.node.add_child(buttons_container)
 	var index = 0
 	for tax in order_types.taxes:
-		var button = button_template.instance()
+		var button = button_template.instantiate()
 		buttons_container.add_child(button)
 		tax_buttons.append(button)
-		button.hint_tooltip = hint_tooltips_tax[tax]
+		button.tooltip_text = hint_tooltips_tax[tax]
 		button.orders = {
 			"order": orders,
 			"type": "taxes",
@@ -397,7 +397,7 @@ func setup_taxes(orders):
 		index += 1
 		setup_order_button(button)
 		if tax == "low":
-			button.pressed = true
+			button.button_pressed = true
 			button.disabled = true
 	orders.node.add_child(HSeparator.new())
 
@@ -409,8 +409,8 @@ func setup_tactics(orders_container, tactics):
 	orders_container.node.add_child(buttons_container)
 	var index = 0
 	for tactic in tactics:
-		var button = button_template.instance()
-		button.hint_tooltip = hint_tooltips_tactics[tactic]
+		var button = button_template.instantiate()
+		button.tooltip_text = hint_tooltips_tactics[tactic]
 		button.orders = {
 			"order": orders_container,
 			"type": "tactic",
@@ -420,7 +420,7 @@ func setup_tactics(orders_container, tactics):
 		index += 1
 		setup_order_button(button)
 		if tactic == "default":
-			button.pressed = true
+			button.button_pressed = true
 			button.disabled = true
 		buttons_container.add_child(button)
 	orders_container.node.add_child(HSeparator.new())
@@ -433,7 +433,7 @@ func setup_priority(orders_container):
 	orders_container.node.add_child(buttons_container)
 	var index = 0
 	for priority in order_types.priority:
-		var button = button_template.instance()
+		var button = button_template.instantiate()
 		button.orders =  {
 			"order": orders_container,
 			"type": "priority",
@@ -452,7 +452,7 @@ func setup_priority(orders_container):
 
 
 func setup_order_button(button):
-	yield(get_tree(), "idle_frame")
+	await get_tree().idle_frame
 	button.setup_order_button()
 
 

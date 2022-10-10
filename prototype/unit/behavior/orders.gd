@@ -126,7 +126,7 @@ func build_leaders():
 	game.map.add_child(timer)
 	timer.start()
 # warning-ignore:return_value_discarded
-	timer.connect("timeout", self, "hp_regen_cycle")
+	timer.connect("timeout",Callable(self,"hp_regen_cycle"))
 
 
 func hp_regen_cycle(): # called every second  and
@@ -256,7 +256,7 @@ func conquer_building(unit):
 		var building_full_hp = ( (current_hp / hp) == 1 )
 		if building.team == "neutral" and building_full_hp:
 			unit.channel_start(conquer_time)
-			yield(unit.channeling_timer, "timeout")
+			await unit.channeling_timer.timeout
 			# conquer
 			if unit.channeling:
 				unit.channeling = false
@@ -305,14 +305,14 @@ func pray_in_church(unit):
 			and not unit.stunned):
 		building.channeling = true
 		unit.channel_start(pray_time)
-		yield(unit.channeling_timer, "timeout")
+		await unit.channeling_timer.timeout
 		if unit.channeling:
 			unit.channeling = false
 			unit.working = false
 			pray(unit)
 			game.ui.show_select()
 			# Chruch pray cooldown <- temporary solution
-			yield(get_tree().create_timer(pray_cooldown), "timeout")
+			await get_tree().create_timer(pray_cooldown).timeout
 			building.channeling = false
 
 
@@ -353,7 +353,7 @@ func gold_order(button):
 
 func gold_collect_counter(button):
 	var mine = button.orders.order.mine
-	yield(mine.channeling_timer, "timeout")
+	await mine.channeling_timer.timeout
 	if button.counter > 0:
 		button.counter -= 1
 		button.hint_label.text = str(button.counter)
@@ -372,7 +372,7 @@ func gold_collect_counter(button):
 
 func gold_destroy_counter(button):
 	var mine = button.orders.order.mine
-	yield(mine.channeling_timer, "timeout")
+	await mine.channeling_timer.timeout
 	if button.counter > 0:
 		button.counter -= 1
 		button.hint_label.text = str(button.counter)
@@ -449,7 +449,7 @@ func lumber_cut(lumberjack):
 	lumberjack.channeling_timer.start()
 	
 	# cut animation end
-	yield(lumberjack.channeling_timer, "timeout")
+	await lumberjack.channeling_timer.timeout
 	lumberjack.working = true
 	game.unit.move.move(lumberjack, lumberjack.origin)
 	lumberjack.after_arive = "lumber_arive"
@@ -522,7 +522,7 @@ func retreat(unit):
 	set_leader(unit, order)
 	var lane = unit.lane
 	var path = game.map.lanes_paths[lane].duplicate()
-	if unit.team == "blue": path.invert()
+	if unit.team == "blue": path.reverse()
 	game.unit.follow.smart(unit, path, "move")
 	
 

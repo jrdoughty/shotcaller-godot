@@ -18,12 +18,12 @@ const leader = {
 	"lorne": {
 		"respawn reduction": 0.8,
 		"defense": 5,
-		"description": "Ignores extra 5 damage on hits"
+		"description": "Ignores extra 5 damage checked hits"
 	},
 	"hongi": {
 		"bonus hp": 100,
 		"counter": 10,
-		"description": "Returns 10 damage on melee hits"
+		"description": "Returns 10 damage checked melee hits"
 	}, 
 	"nagato": {
 		"bonus_retreat_speed": 10,
@@ -96,7 +96,7 @@ func projectile_release(attacker):
 func secondary_projectile(attacker, target):
 	var target_position = target.global_position + target.collision_position
 	attacker.weapon.look_at(target_position)
-	game.unit.attack.projectile_start(attacker, target)
+	game.unit.attack.projectile_start(Callable(attacker,target))
 
 
 
@@ -142,7 +142,7 @@ func hit_modifiers(attacker, target, projectile, modifiers):
 				modifiers.damage += attacker_skills.bleed * min(10, attacker.attack_count)
 			
 			if "agile" in attacker_skills:
-				game.unit.modifiers.remove(attacker, "attack_speed", "agile")
+				game.unit.modifiers.remove_at(attacker, "attack_speed", "agile")
 				game.unit.modifiers.add(attacker, "attack_speed", "agile", attacker_skills.agile * min(10, attacker.attack_count))
 	
 	return modifiers

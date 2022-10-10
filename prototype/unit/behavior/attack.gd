@@ -32,11 +32,11 @@ func set_target(unit, target):
 	if not target: 
 		unit.hunting = false
 		unit.attack_count = 0
-		game.unit.modifiers.remove(unit, "attack_speed", "agile")
+		game.unit.modifiers.remove_at(unit, "attack_speed", "agile")
 	if target and unit.moves: unit.hunting = true
 	if unit.target != target:
 		unit.attack_count = 0
-		game.unit.modifiers.remove(unit, "attack_speed", "agile")
+		game.unit.modifiers.remove_at(unit, "attack_speed", "agile")
 		unit.last_target = unit.target
 	unit.target = target
 
@@ -109,7 +109,7 @@ func take_hit(attacker, target, projectile = null, modifiers = {}):
 			attacker.attack_count += 1
 			if attacker.type == "leader":
 				target.last_attacker = attacker
-				target.assist_candidates[attacker] = OS.get_ticks_msec()
+				target.assist_candidates[attacker] = Time.get_ticks_msec()
 			
 		if not modifiers.counter:
 			game.unit.advance.react(target, attacker)
@@ -142,14 +142,14 @@ func take_hit(attacker, target, projectile = null, modifiers = {}):
 				else: game.enemy_deaths += 1
 				if attacker.team == game.player_team: game.player_kills += 1
 				else: game.enemy_kills += 1
-			yield(get_tree().create_timer(0.6), "timeout")
+			await get_tree().create_timer(0.6).timeout
 			game.unit.attack.set_target(attacker, null)
 			game.unit.advance.resume(attacker)
 
 
 
 func projectile_release(attacker):
-	projectile_start(attacker, attacker.target)
+	projectile_start(Callable(attacker,attacker.target))
 	game.unit.skills.projectile_release(attacker)
 
 
@@ -242,8 +242,8 @@ func projectile_stuck(attacker, target, projectile):
 	sprites.frame = 1 
 	# stop projectile movement
 	attacker.projectiles.erase(projectile)
-	# remove projectile after 1.2 sec
-	yield(get_tree().create_timer(1.2), "timeout")
+	# remove_at projectile after 1.2 sec
+	await get_tree().create_timer(1.2).timeout
 	if is_instance_valid(stuck):
 		stuck.get_parent().remove_child(stuck)
 		stuck.queue_free()

@@ -1,46 +1,46 @@
-[gd_scene load_steps=12 format=2]
+[gd_scene load_steps=12 format=3 uid="uid://dudscg8whfhxo"]
 
-[ext_resource path="res://map/maps/3lane_map.tscn" type="PackedScene" id=1]
-[ext_resource path="res://game.gd" type="Script" id=2]
-[ext_resource path="res://controls/camera.gd" type="Script" id=3]
-[ext_resource path="res://ui/ui.tscn" type="PackedScene" id=4]
-[ext_resource path="res://unit/unit.tscn" type="PackedScene" id=5]
-[ext_resource path="res://map/maps.gd" type="Script" id=6]
-[ext_resource path="res://controls/selection.gd" type="Script" id=7]
-[ext_resource path="res://utils/utils.gd" type="Script" id=8]
-[ext_resource path="res://test/test.gd" type="Script" id=9]
-[ext_resource path="res://unit/collision.gd" type="Script" id=10]
-[ext_resource path="res://map/maps/1lane_map.tscn" type="PackedScene" id=11]
+[ext_resource type="PackedScene" path="res://map/maps/3lane_map.tscn" id="1"]
+[ext_resource type="Script" path="res://game.gd" id="2"]
+[ext_resource type="Script" path="res://controls/camera.gd" id="3"]
+[ext_resource type="PackedScene" path="res://ui/ui.tscn" id="4"]
+[ext_resource type="PackedScene" path="res://unit/unit.tscn" id="5"]
+[ext_resource type="Script" path="res://map/maps.gd" id="6"]
+[ext_resource type="Script" path="res://controls/selection.gd" id="7"]
+[ext_resource type="Script" path="res://utils/utils.gd" id="8"]
+[ext_resource type="Script" path="res://test/test.gd" id="9"]
+[ext_resource type="Script" path="res://unit/collision.gd" id="10"]
+[ext_resource type="PackedScene" path="res://map/maps/1lane_map.tscn" id="11"]
 
 [node name="game" type="Node2D"]
-script = ExtResource( 2 )
+script = ExtResource("2")
 
-[node name="unit" parent="." instance=ExtResource( 5 )]
+[node name="unit" parent="." instance=ExtResource("5")]
 visible = false
 
 [node name="maps" type="Node2D" parent="."]
-script = ExtResource( 6 )
+script = ExtResource("6")
 
-[node name="1lane_map" parent="maps" instance=ExtResource( 11 )]
+[node name="1lane_map" parent="maps" instance=ExtResource("11")]
 visible = false
 
-[node name="3lane_map" parent="maps" instance=ExtResource( 1 )]
+[node name="3lane_map" parent="maps" instance=ExtResource("1")]
 visible = false
 
 [node name="camera" type="Camera2D" parent="."]
 current = true
-script = ExtResource( 3 )
+script = ExtResource("3")
 
-[node name="ui" parent="." instance=ExtResource( 4 )]
+[node name="ui" parent="." instance=ExtResource("4")]
 
 [node name="selection" type="Node" parent="."]
-script = ExtResource( 7 )
+script = ExtResource("7")
 
 [node name="collision" type="Node" parent="."]
-script = ExtResource( 10 )
+script = ExtResource("10")
 
 [node name="utils" type="Node" parent="."]
-script = ExtResource( 8 )
+script = ExtResource("8")
 
 [node name="test" type="Node" parent="."]
-script = ExtResource( 9 )
+script = ExtResource("9")

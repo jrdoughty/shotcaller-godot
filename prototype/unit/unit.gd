@@ -4,33 +4,33 @@ var game:Node
 
 # self = game.unit
 
-export var hp:int = 100
+@export var hp:int = 100
 var current_hp:int = 100
-export var regen:int = 0
-export var vision:int = 100
+@export var regen:int = 0
+@export var vision:int = 100
 var current_modifiers = {}
-export var type:String = "pawn" # building leader
-export var subtype:String = "melee" # ranged base lane backwood
-export var display_name:String
-export var title:String
-export var team:String = "blue"
-export var respawn:float = 1
+@export var type:String = "pawn" # building leader
+@export var subtype:String = "melee" # ranged base lane backwood
+@export var display_name:String
+@export var title:String
+@export var team:String = "blue"
+@export var respawn:float = 1
 var dead:bool = false
-export var immune:bool = false
+@export var immune:bool = false
 var mirror:bool = false
 var texture:Dictionary
 var units_in_radius := []
 
 # SELECTION
-export var selectable:bool = false
+@export var selectable:bool = false
 var selection_radius = 36
 var selection_position:Vector2 = Vector2.ZERO
 
 # MOVEMENT
-export var moves:bool = false
-export var mounted:bool = false
-export var speed:float = 0
-export var hunting_speed:float = 0
+@export var moves:bool = false
+@export var mounted:bool = false
+@export var speed:float = 0
+@export var hunting_speed:float = 0
 var angle:float = 0
 var origin:Vector2 = Vector2.ZERO
 var current_step:Vector2 = Vector2.ZERO
@@ -40,20 +40,20 @@ var last_position2:Vector2 = Vector2.ZERO
 var current_path:Array = []
 
 # COLLISION
-export var collide:bool = false
+@export var collide:bool = false
 var collision_radius = 0
 var collision_position:Vector2 = Vector2.ZERO
 var collide_target:Node2D
 var collision_timer:Timer
 
 # ATTACK
-export var attacks:bool = false
-export var ranged:bool = false
+@export var attacks:bool = false
+@export var ranged:bool = false
 var stunned:bool = false
-export var damage:int = 0
-export var attack_range:float = 1
-export var attack_speed:float = 1
-export var defense:int = 0
+@export var damage:int = 0
+@export var attack_range:float = 1
+@export var attack_speed:float = 1
+@export var defense:int = 0
 var target:Node2D
 var last_target:Node2D
 var aim_point:Vector2
@@ -63,13 +63,13 @@ var weapon:Node2D
 # PROJECTILES
 var projectile:Node2D # template
 var projectiles:Array = []
-export var projectile_speed:float = 3
-export var projectile_rotation:float = 0
+@export var projectile_speed:float = 3
+@export var projectile_rotation:float = 0
 var attack_hit_position:Vector2 = Vector2.ONE
 var attack_hit_radius = 24
 
 # BEHAVIOR
-export var lane:String = "mid"
+@export var lane:String = "mid"
 var next_event:String = "" # "on_arive" "on_move" "on_collision"
 var after_arive:String = "stop" # "attack" "conquer" "pray" "cut"
 var behavior:String = "stand" # "move", "attack", "advance", "stop"
@@ -117,9 +117,9 @@ var last_hit_count = 0
 var kills = 0
 var deaths = 0
 var assists = 0
-# Key - unit, value - OS.get_ticks_msec() - time when attack was performed
+# Key - unit, value - Time.get_ticks_msec() - time when attack was performed
 var assist_candidates = {}
-# Maximum time between a units last attack on a target and its death for it to
+# Maximum time between a units last attack checked a target and its death for it to
 # count as an assist
 const ASSIST_TIME_IN_SECONDS = 3
 
@@ -149,13 +149,13 @@ func _ready():
 		get_units_timer.wait_time = 1
 		get_units_timer.autostart = true
 # warning-ignore:return_value_discarded
-		get_units_timer.connect("timeout", self, "on_every_second")
+		get_units_timer.connect("timeout",Callable(self,"on_every_second"))
 		add_child(get_units_timer)
 
 		experience_timer.wait_time = 5
 		experience_timer.autostart = true
 # warning-ignore:return_value_discarded
-		experience_timer.connect("timeout", self, "on_experience_tick")
+		experience_timer.connect("timeout",Callable(self,"on_experience_tick"))
 		add_child(experience_timer)
 
 func gain_experience(value):
@@ -219,7 +219,7 @@ func setup_team(new_team):
 	set_anim(new_team, body)
 
 	# color weapons
-	if weapon is AnimatedSprite: set_anim(new_team, weapon)
+	if weapon is AnimatedSprite2D: set_anim(new_team, weapon)
 	if has_node("sprites/weapon/spear"):
 		var spear = get_node("sprites/weapon/spear")
 		set_anim(new_team, spear)
@@ -261,9 +261,9 @@ func look_at(point):
 		self.mirror_toggle(point.x - self.global_position.x < 0)
 
 
-func mirror_toggle(on):
-	self.mirror = on
-	var s = -1 if on else 1
+func mirror_toggle(checked):
+	self.mirror = checked
+	var s = -1 if checked else 1
 	self.get_node("sprites").scale.x = s
 	if self.attack_hit_position:
 		self.attack_hit_position.x = s * abs(self.attack_hit_position.x)
@@ -276,7 +276,7 @@ func sort_by_distance(array):
 			"unit": unit2,
 			"distance": self.global_position.distance_to(unit2.global_position)
 		})
-	sorted.sort_custom(game.utils, "compare_distance")
+	sorted.sort_custom(Callable(game.utils,"compare_distance"))
 	return sorted
 
 
@@ -298,7 +298,7 @@ func cut_path(path):
 			"point": point,
 			"index": index
 		})
-	distances.sort_custom(game.utils, "compare_distance")
+	distances.sort_custom(Callable(game.utils,"compare_distance"))
 	var next_first_point = distances[0]
 	
 	var new_path = path.slice(next_first_point.index, path_size)
@@ -455,7 +455,7 @@ func die():  # hp <= 0
 		for attacker in assist_candidates.keys():
 			if attacker == last_attacker:
 				continue
-			if OS.get_ticks_msec() - assist_candidates[attacker] < ASSIST_TIME_IN_SECONDS * 1000:
+			if Time.get_ticks_msec() - assist_candidates[attacker] < ASSIST_TIME_IN_SECONDS * 1000:
 					attacker.assists += 1
 	elif type == 'pawn' and last_attacker != null:
 		last_attacker.last_hit_count += 1

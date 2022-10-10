@@ -40,7 +40,7 @@ var team_random_list = {"red": [], "blue": []}
 
 func _ready():
 	game = get_tree().get_current_scene()
-	yield(get_tree(), "idle_frame")
+	await get_tree().idle_frame
 	
 	timer = Timer.new()
 	timer.one_shot = true
@@ -51,7 +51,7 @@ func random_leader(team):
 	var team_list = team_random_list[team]
 	var index = floor(randf() * team_list.size())
 	var leader = team_list[index]
-	team_list.remove(index)
+	team_list.remove_at(index)
 	return leader
 
 
@@ -84,8 +84,8 @@ func leaders():
 
 
 func send_leader(leader, path):
-	yield(get_tree(), "idle_frame")
-	game.unit.follow.start(leader, path, "advance")
+	await get_tree().idle_frame
+	game.unit.follow.start(Callable(leader,path).bind("advance"))
 
 
 func start():
@@ -107,11 +107,11 @@ func spawn_group_cycle():
 			send_pawn(extra_unit, lane, team)
 	
 	timer.start()
-	yield(timer, "timeout")
+	await timer.timeout
 	game.unit.orders.leaders_cycle()
 	
 	timer.start()
-	yield(timer, "timeout")
+	await timer.timeout
 	spawn_group_cycle()
 
 
@@ -133,7 +133,7 @@ func send_pawn(template, lane, team):
 		var unit_template = self[template]
 		pawn = game.maps.create(unit_template, lane, team, "point_random", path.start)
 	game.unit.orders.set_pawn(pawn)
-	game.unit.follow.start(pawn, path.follow, "advance")
+	game.unit.follow.start(Callable(pawn,path.follow).bind("advance"))
 
 
 
@@ -175,14 +175,14 @@ func cemitery_add_leader(leader):
 			game.unit.spawn.cemitery.enemy_leaders.append(leader)
 	
 	var respawn_time = order_time * leader.respawn
-	yield(get_tree().create_timer(respawn_time), "timeout")
+	await get_tree().create_timer(respawn_time).timeout
 	
 	# respawn leader
 	var team = leader.team
 	var lane = leader.lane
 	var path = game.map.lanes_paths[leader.lane].duplicate()
-	if leader.team == "red": path.invert()
+	if leader.team == "red": path.reverse()
 	var start = path.pop_front()
 	leader = spawn_unit(leader, lane, team, "point_random", start)
 	leader.reset_unit()
-	game.unit.follow.start(leader, path, "advance")
+	game.unit.follow.start(Callable(leader,path).bind("advance"))

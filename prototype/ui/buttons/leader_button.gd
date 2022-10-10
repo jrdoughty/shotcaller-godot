@@ -12,5 +12,5 @@ func button_down():
 	if leader:
 		game.camera.global_position = leader.global_position - game.camera.offset
 		game.selection.select_unit(leader)
-		self.pressed = true
+		self.button_pressed = true
 

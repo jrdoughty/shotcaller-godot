@@ -29,14 +29,14 @@ var enemy_team:String = "red"
 
 var rng = RandomNumberGenerator.new()
 
-onready var maps = get_node("maps")
-onready var camera = get_node("camera")
-onready var unit = get_node("unit")
-onready var collision = get_node("collision")
-onready var ui = get_node("ui")
-onready var selection = get_node("selection")
-onready var utils = get_node("utils")
-onready var test = get_node("test")
+@onready var maps = get_node("maps")
+@onready var camera = get_node("camera")
+@onready var unit = get_node("unit")
+@onready var collision = get_node("collision")
+@onready var ui = get_node("ui")
+@onready var selection = get_node("selection")
+@onready var utils = get_node("utils")
+@onready var test = get_node("test")
 
 var map:Node
 
@@ -87,7 +87,7 @@ func start():
 		else: 
 			unit.spawn.start()
 			ui.get_node("score_board").visible = false
-			yield(get_tree().create_timer(4), "timeout")
+			await get_tree().create_timer(4).timeout
 			unit.spawn.leaders()
 			maps.setup_leaders()
 

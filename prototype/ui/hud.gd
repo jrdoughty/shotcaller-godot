@@ -3,9 +3,9 @@ var game:Node
 
 # self = game.unit.hud
 
-onready var state = get_node("state")
-onready var hpbar = get_node("hpbar")
-onready var selection = get_node("selection")
+@onready var state = get_node("state")
+@onready var hpbar = get_node("hpbar")
+@onready var selection = get_node("selection")
 
 
 func _ready():

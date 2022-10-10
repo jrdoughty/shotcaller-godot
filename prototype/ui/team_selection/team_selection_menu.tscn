@@ -1,6 +1,6 @@
 [gd_scene load_steps=6 format=2]
 
-[ext_resource path="res://assets/ui/kenvector_future.tres" type="DynamicFont" id=1]
+[ext_resource path="res://assets/ui/kenvector_future.tres" type="FontFile" id=1]
 [ext_resource path="res://ui/team_selection/leader_select_menu_panel.tscn" type="PackedScene" id=2]
 [ext_resource path="res://ui/team_selection/team_selection_menu.gd" type="Script" id=3]
 [ext_resource path="res://ui/buttons/menu_button.tscn" type="PackedScene" id=4]
@@ -9,61 +9,61 @@
 extents = Vector2( 32, 32 )
 
 [node name="team_selection_menu" type="PanelContainer"]
-pause_mode = 2
-margin_right = 460.0
-margin_bottom = 440.0
+process_mode = 2
+offset_right = 460.0
+offset_bottom = 440.0
 script = ExtResource( 3 )
 
 [node name="VBoxContainer" type="VBoxContainer" parent="."]
-margin_left = 7.0
-margin_top = 7.0
-margin_right = 453.0
-margin_bottom = 433.0
+offset_left = 7.0
+offset_top = 7.0
+offset_right = 453.0
+offset_bottom = 433.0
 
 [node name="Label" type="Label" parent="VBoxContainer"]
-margin_right = 446.0
-margin_bottom = 18.0
+offset_right = 446.0
+offset_bottom = 18.0
 custom_fonts/font = ExtResource( 1 )
 text = "Team selection"
 align = 1
 valign = 1
 
 [node name="HSeparator" type="HSeparator" parent="VBoxContainer"]
-margin_top = 22.0
-margin_right = 446.0
-margin_bottom = 26.0
+offset_top = 22.0
+offset_right = 446.0
+offset_bottom = 26.0
 
 [node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer"]
-margin_top = 30.0
-margin_right = 446.0
-margin_bottom = 362.0
+offset_top = 30.0
+offset_right = 446.0
+offset_bottom = 362.0
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
 [node name="VBoxContainer" type="VBoxContainer" parent="VBoxContainer/HBoxContainer"]
-margin_right = 217.0
-margin_bottom = 332.0
+offset_right = 217.0
+offset_bottom = 332.0
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
 [node name="Label" type="Label" parent="VBoxContainer/HBoxContainer/VBoxContainer"]
-margin_right = 217.0
-margin_bottom = 18.0
+offset_right = 217.0
+offset_bottom = 18.0
 custom_fonts/font = ExtResource( 1 )
 text = "team blue"
 align = 1
 valign = 1
 
 [node name="ScrollContainer" type="ScrollContainer" parent="VBoxContainer/HBoxContainer/VBoxContainer"]
-margin_top = 22.0
-margin_right = 217.0
-margin_bottom = 282.0
-rect_min_size = Vector2( 0, 260 )
+offset_top = 22.0
+offset_right = 217.0
+offset_bottom = 282.0
+minimum_size = Vector2( 0, 260 )
 
 [node name="blue_team_container" type="VBoxContainer" parent="VBoxContainer/HBoxContainer/VBoxContainer/ScrollContainer"]
 unique_name_in_owner = true
-margin_right = 217.0
-margin_bottom = 260.0
+offset_right = 217.0
+offset_bottom = 260.0
 size_flags_horizontal = 3
 size_flags_vertical = 3
 custom_constants/separation = 2
@@ -71,19 +71,19 @@ custom_constants/separation = 2
 [node name="leader_select_menu_panel" parent="VBoxContainer/HBoxContainer/VBoxContainer/ScrollContainer/blue_team_container" instance=ExtResource( 2 )]
 anchor_right = 0.0
 anchor_bottom = 0.0
-margin_right = 217.0
-margin_bottom = 50.0
+offset_right = 217.0
+offset_bottom = 50.0
 
 [node name="HBoxContainer" parent="VBoxContainer/HBoxContainer/VBoxContainer/ScrollContainer/blue_team_container/leader_select_menu_panel" index="0"]
-margin_right = 210.0
+offset_right = 210.0
 
 [node name="Label" parent="VBoxContainer/HBoxContainer/VBoxContainer/ScrollContainer/blue_team_container/leader_select_menu_panel/HBoxContainer" index="1"]
-margin_right = 203.0
+offset_right = 203.0
 
 [node name="add_leader_blue" type="Button" parent="VBoxContainer/HBoxContainer/VBoxContainer"]
-margin_top = 286.0
-margin_right = 217.0
-margin_bottom = 332.0
+offset_top = 286.0
+offset_right = 217.0
+offset_bottom = 332.0
 size_flags_horizontal = 3
 size_flags_vertical = 3
 custom_fonts/font = ExtResource( 1 )
@@ -94,35 +94,35 @@ scale = Vector2( 3.4, 0.7 )
 shape = SubResource( 8 )
 
 [node name="VSeparator" type="VSeparator" parent="VBoxContainer/HBoxContainer"]
-margin_left = 221.0
-margin_right = 225.0
-margin_bottom = 332.0
+offset_left = 221.0
+offset_right = 225.0
+offset_bottom = 332.0
 
 [node name="VBoxContainer2" type="VBoxContainer" parent="VBoxContainer/HBoxContainer"]
-margin_left = 229.0
-margin_right = 446.0
-margin_bottom = 332.0
+offset_left = 229.0
+offset_right = 446.0
+offset_bottom = 332.0
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
 [node name="Label" type="Label" parent="VBoxContainer/HBoxContainer/VBoxContainer2"]
-margin_right = 217.0
-margin_bottom = 18.0
+offset_right = 217.0
+offset_bottom = 18.0
 custom_fonts/font = ExtResource( 1 )
 text = "team red"
 align = 1
 valign = 1
 
 [node name="ScrollContainer" type="ScrollContainer" parent="VBoxContainer/HBoxContainer/VBoxContainer2"]
-margin_top = 22.0
-margin_right = 217.0
-margin_bottom = 282.0
-rect_min_size = Vector2( 0, 260 )
+offset_top = 22.0
+offset_right = 217.0
+offset_bottom = 282.0
+minimum_size = Vector2( 0, 260 )
 
 [node name="red_team_container" type="VBoxContainer" parent="VBoxContainer/HBoxContainer/VBoxContainer2/ScrollContainer"]
 unique_name_in_owner = true
-margin_right = 217.0
-margin_bottom = 260.0
+offset_right = 217.0
+offset_bottom = 260.0
 size_flags_horizontal = 3
 size_flags_vertical = 3
 custom_constants/separation = 2
@@ -130,13 +130,13 @@ custom_constants/separation = 2
 [node name="leader_select_menu_panel" parent="VBoxContainer/HBoxContainer/VBoxContainer2/ScrollContainer/red_team_container" instance=ExtResource( 2 )]
 anchor_right = 0.0
 anchor_bottom = 0.0
-margin_right = 217.0
-margin_bottom = 50.0
+offset_right = 217.0
+offset_bottom = 50.0
 
 [node name="add_leader_red" type="Button" parent="VBoxContainer/HBoxContainer/VBoxContainer2"]
-margin_top = 286.0
-margin_right = 217.0
-margin_bottom = 332.0
+offset_top = 286.0
+offset_right = 217.0
+offset_bottom = 332.0
 size_flags_vertical = 3
 custom_fonts/font = ExtResource( 1 )
 text = "add character"
@@ -146,9 +146,9 @@ scale = Vector2( 3.4, 0.7 )
 shape = SubResource( 8 )
 
 [node name="menu_button" parent="VBoxContainer" instance=ExtResource( 4 )]
-margin_top = 366.0
-margin_right = 446.0
-margin_bottom = 426.0
+offset_top = 366.0
+offset_right = 446.0
+offset_bottom = 426.0
 text = "Play"
 icon = null
 value = "choose_leaders"

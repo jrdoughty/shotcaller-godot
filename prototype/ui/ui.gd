@@ -55,7 +55,7 @@ func _ready():
 	get_node("top_mid").add_child(timer)
 	timer.start()
 # warning-ignore:return_value_discarded
-	timer.connect("timeout", self, "count_time")
+	timer.connect("timeout",Callable(self,"count_time"))
 	
 	EventMachine.register_listener(Events.GAME_END, self, "handle_game_end")
 

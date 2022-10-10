@@ -7,9 +7,9 @@ var saved_icon
 var shop_item = false
 var price_after_discount
 
-onready var name_label = get_node("name")
-onready var price_label = get_node("price")
-onready var sell_button = get_node("sell_button")
+@onready var name_label = get_node("name")
+@onready var price_label = get_node("price")
+@onready var sell_button = get_node("sell_button")
 
 
 func _ready():
@@ -25,7 +25,7 @@ func setup(new_item):
 		if not self.saved_icon:
 			self.saved_icon = self.icon
 		self.icon = null
-		self.hint_tooltip = "Buy items in the Blacksmith"
+		self.tooltip_text = "Buy items in the Blacksmith"
 		self.disabled = true
 		name_label.visible = false
 		price_label.visible = false
@@ -33,7 +33,7 @@ func setup(new_item):
 	else:
 		self.item = new_item
 		self.name = new_item.name
-		self.hint_tooltip = new_item.tooltip
+		self.tooltip_text = new_item.tooltip
 		if not self.shop_item:
 			self.disabled = (new_item.type != "consumable")
 		var icon_ref = self.icon

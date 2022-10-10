@@ -73,17 +73,17 @@ func start(unit, path, cb):
 	if path and path.size():
 		var next_point = path.pop_front()
 		unit.current_path = path
-		game.unit[cb].start(unit, next_point)
+		game.unit[cb].start(Callable(unit,next_point))
 
 
 func next(unit):
-	start(unit, unit.current_path, unit.behavior)
+	start(Callable(unit,unit.current_path).bind(unit.behavior))
 
 
 func draw_path(unit):
 	if unit and unit.current_path:
 		path_line.visible = true
-		var pool = PoolVector2Array()
+		var pool = PackedVector2Array()
 		pool.push_back(unit.global_position)
 		pool.append_array(unit.current_path)
 		if unit.team == "blue":
@@ -98,7 +98,7 @@ func draw_path(unit):
 func change_lane(unit, point):
 	var lane = game.utils.closer_lane(point)
 	var path = game.map.lanes_paths[lane].duplicate()
-	if unit.team == "red": path.invert()
+	if unit.team == "red": path.reverse()
 	var lane_start = path.pop_front()
 	unit.lane = lane
 	game.unit.move.smart(unit, lane_start, "move")
@@ -109,9 +109,9 @@ func lane(unit):
 	if !unit.current_path:
 		var lane = unit.lane
 		var path = game.map.lanes_paths[lane].duplicate()
-		if unit.team == "red": path.invert()
+		if unit.team == "red": path.reverse()
 		if unit.type != 'leader': 
-			start(unit, path, "advance")
+			start(Callable(unit,path).bind("advance"))
 		else: smart(unit, path, "advance")
 
 
@@ -121,7 +121,7 @@ func smart(unit, path, cb):
 		var new_path = unit.cut_path(path)
 		var next_point = new_path.pop_front()
 		unit.current_path = new_path
-		game.unit[cb].start(unit, next_point)
+		game.unit[cb].start(Callable(unit,next_point))
 
 
 
@@ -131,11 +131,11 @@ func teleport(unit, point):
 	var distance = building.global_position.distance_to(point)
 	game.control_state = "selection"
 	game.ui.controls_menu.teleport_button.disabled = false
-	game.ui.controls_menu.teleport_button.pressed = false
+	game.ui.controls_menu.teleport_button.button_pressed = false
 	game.unit.move.stand(unit)
 	unit.channeling = true
 	
-	yield(get_tree().create_timer(teleport_time), "timeout")
+	await get_tree().create_timer(teleport_time).timeout
 	if unit.channeling:
 		unit.working = false
 		unit.channeling = false

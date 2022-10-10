@@ -77,7 +77,7 @@ func on_collision(unit, delta):
 			unit.collision_timer.stop() # first stops previous timers
 		unit.collision_timer.wait_time = 0.1 + randf() * 0.2
 		unit.collision_timer.start()
-		yield(unit.collision_timer, "timeout")
+		await unit.collision_timer.timeout
 		move(unit, unit.current_destiny)
 
 
@@ -109,5 +109,5 @@ func stand(unit):
 func smart(unit, point, cb):
 	if not unit.stunned:
 		var path = game.unit.follow.find_path(unit.global_position, point)
-		if path: game.unit.follow.start(unit, path, cb)
+		if path: game.unit.follow.start(Callable(unit,path).bind(cb))
 

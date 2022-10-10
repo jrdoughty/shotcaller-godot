@@ -56,7 +56,7 @@ func new_inventory(leader):
 		"consumable_item_buttons": []
 	}
 
-	inventory.container.margin_top = sell_button_margin
+	inventory.container.offset_top = sell_button_margin
 # warning-ignore:unused_variable
 	for index in range(equip_items_max):
 		inventory.equip_items.append(null)
@@ -78,7 +78,7 @@ func build_leaders():
 	game.ui.get_node("bot_mid").add_child(timer)
 	timer.start()
 # warning-ignore:return_value_discarded
-	timer.connect("timeout", self, "gold_update_cycle")
+	timer.connect("timeout",Callable(self,"gold_update_cycle"))
 
 
 func get_leader_inventory(leader):
@@ -131,7 +131,7 @@ func add_inventory(leader):
 	var item_button
 # warning-ignore:unused_variable
 	for i in range(equip_items_max):
-		item_button = item_button_preload.instance()
+		item_button = item_button_preload.instantiate()
 		inventory.equip_item_buttons.append(item_button)
 		inventory.container.add_child(item_button)
 		item_button.index = counter
@@ -139,7 +139,7 @@ func add_inventory(leader):
 		item_button.setup(null)
 # warning-ignore:unused_variable
 	for i in range(consumable_items_max):
-		item_button = item_button_preload.instance()
+		item_button = item_button_preload.instantiate()
 		inventory.consumable_item_buttons.append(item_button)
 		inventory.container.add_child(item_button)
 		item_button.index = counter
@@ -153,7 +153,7 @@ func gold_timer(unit):
 	unit.add_child(timer)
 	timer.start()
 # warning-ignore:return_value_discarded
-	timer.connect("timeout", self, "gold_timer_timeout", [unit])
+	timer.connect("timeout",Callable(self,"gold_timer_timeout").bind(unit))
 
 
 func gold_timer_timeout(unit):
@@ -235,7 +235,7 @@ func delivery_timer(delivery):
 						delivery.item.ready = true
 						delivery.label.text = "ready"
 
-	yield(get_tree().create_timer(1), "timeout")
+	await get_tree().create_timer(1).timeout
 	if delivery.time > 0: delivery_timer(delivery)
 
 
@@ -261,7 +261,7 @@ func give_item(delivery):
 				game.unit.modifiers.add(leader, key, item.name, item.attributes[key])
 			if "passive" in item:
 				var item_scene = load(item.passive)
-				leader.get_node("behavior/item_passives").add_child(item_scene.instance())
+				leader.get_node("behavior/item_passives").add_child(item_scene.instantiate())
 
 		"consumable":
 			inventory.consumable_items[index] = item
@@ -282,7 +282,7 @@ func remove_item(leader, index):
 	if item.type == "equip":
 		# Remove attributes that were added when purchasing an item
 		for key in item.attributes.keys():
-			game.unit.modifiers.remove(leader, key, item.name, item.attributes[key])
+			game.unit.modifiers.remove_at(leader, key, item.name, item.attributes[key])
 
 		inventory.equip_items[index] = null
 

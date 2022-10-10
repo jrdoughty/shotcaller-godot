@@ -12,12 +12,12 @@ uniform float amplitude_y = 0.0;
 uniform float distortion_x = 0.0;
 uniform float distortion_y = 0.0;
 
-uniform vec4 origin:hint_color;
-uniform vec4 origin1:hint_color;
-uniform vec4 red:hint_color;
-uniform vec4 red1:hint_color;
-uniform vec4 gray:hint_color;
-uniform vec4 gray1:hint_color;
+uniform vec4 origin:source_color;
+uniform vec4 origin1:source_color;
+uniform vec4 red:source_color;
+uniform vec4 red1:source_color;
+uniform vec4 gray:source_color;
+uniform vec4 gray1:source_color;
 
 uniform float tolerance;
 

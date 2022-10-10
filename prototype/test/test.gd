@@ -46,7 +46,7 @@ func spawn_random_units():
 	var n = 80
 	var s = game.unit.spawn
 	for x in range(1, n+1):
-		yield(get_tree().create_timer(x/n), "timeout")
+		await get_tree().create_timer(x/n).timeout
 		var t = game.player_team if randf() > 0.5 else game.enemy_team
 		game.maps.create(s.infantry, "top", t, "random_map", Vector2.ZERO)
 		game.maps.create(s.infantry, "mid", t, "random_map", Vector2.ZERO)
@@ -57,12 +57,12 @@ func unit_wait_end(unit1):
 	if stress:
 		var o = 2000
 		var d = Vector2(randf()*o,randf()*o)
-		if game.unit.moves: game.unit.advance.start(unit1, d)
+		if game.unit.moves: game.unit.advance.start(Callable(unit1,d))
 
 
 func respawn(unit1):
 	if stress and unit1.type != "building":
-		yield(get_tree().create_timer(1), "timeout")
+		await get_tree().create_timer(1).timeout
 		game.unit.spawn.spawn_unit(unit1, unit1.lane, unit1.team, "random_map", Vector2.ZERO)
 
 

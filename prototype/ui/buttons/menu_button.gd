@@ -2,7 +2,7 @@ extends Button
 var game:Node
 
 
-export var value:String
+@export var value:String
 
 var blue_team_button:Node
 var red_team_button:Node
@@ -13,7 +13,7 @@ var play_button:Node
 
 func _ready():
 	game = get_tree().get_current_scene()
-	yield(get_tree(), "idle_frame")
+	await get_tree().idle_frame
 	
 	var menu_buttons = game.ui.main_menu.get_node("container/menu_team_buttons")
 	blue_team_button = menu_buttons.get_node("blue_team_button")
@@ -63,26 +63,26 @@ func button_down():
 		"blue":
 			game.player_team = "blue"
 			game.enemy_team = "red"
-			red_team_button.pressed = false
+			red_team_button.button_pressed = false
 			red_team_button.disabled = false
 			blue_team_button.disabled = true
 		
 		"red":
 			game.player_team = "red"
 			game.enemy_team = "blue"
-			blue_team_button.pressed = false
+			blue_team_button.button_pressed = false
 			blue_team_button.disabled = false
 			red_team_button.disabled = true
 		
 		"small":
 			game.maps.current_map = "1lane_map"
-			large_map_button.pressed = false
+			large_map_button.button_pressed = false
 			large_map_button.disabled = false
 			small_map_button.disabled = true
 		
 		"large":
 			game.maps.current_map = "3lane_map"
-			small_map_button.pressed = false
+			small_map_button.button_pressed = false
 			small_map_button.disabled = false
 			large_map_button.disabled = true
 		

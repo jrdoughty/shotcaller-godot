@@ -3,14 +3,14 @@
 [resource]
 code = "shader_type canvas_item;
 
-uniform vec4 origin:hint_color;
-uniform vec4 origin2:hint_color;
-uniform vec4 origin3:hint_color;
-uniform vec4 origin4:hint_color;
-uniform vec4 new:hint_color;
-uniform vec4 new2:hint_color;
-uniform vec4 new3:hint_color;
-uniform vec4 new4:hint_color;
+uniform vec4 origin:source_color;
+uniform vec4 origin2:source_color;
+uniform vec4 origin3:source_color;
+uniform vec4 origin4:source_color;
+uniform vec4 new:source_color;
+uniform vec4 new2:source_color;
+uniform vec4 new3:source_color;
+uniform vec4 new4:source_color;
 
 uniform float tolerance;
 

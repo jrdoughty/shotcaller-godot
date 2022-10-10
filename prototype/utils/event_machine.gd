@@ -9,7 +9,7 @@ func register_event(event : int, args : Array = []):
 
 
 func register_listener(event : int, node : Node, method : String, extra_args : Array = []):
-	assert(node.has_method(method), "Error registering listener: Node %s does not have method %s" % [node.name, method])
+	assert(node.has_method(method)) #,"Error registering listener: Node %s does not have method %s" % [node.name, method])
 	if not event_listeners.keys().has(event):
 		event_listeners[event] = []
 	else:
@@ -31,7 +31,7 @@ func deregister_listener(event : int, node : Node, method : String) -> int:
 
 	for i in range(listeners.size() - 1, -1, -1):
 		if listeners[i]["node"] == node and listeners[i]["method"] == method:
-			listeners.remove(i)
+			listeners.remove_at(i)
 			return 1
 	return 0
 

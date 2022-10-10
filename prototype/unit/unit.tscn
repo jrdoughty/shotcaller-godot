@@ -1,10 +1,10 @@
 [gd_scene load_steps=33 format=2]
 
 [ext_resource path="res://skills/passive_skills.gd" type="Script" id=1]
-[ext_resource path="res://assets/unit/shadow.png" type="Texture" id=2]
-[ext_resource path="res://assets/pawns/infantry_blue.png" type="Texture" id=3]
-[ext_resource path="res://assets/unit/hpbar.png" type="Texture" id=4]
-[ext_resource path="res://assets/ui/kenvector_future.ttf" type="DynamicFontData" id=5]
+[ext_resource path="res://assets/unit/shadow.png" type="Texture2D" id=2]
+[ext_resource path="res://assets/pawns/infantry_blue.png" type="Texture2D" id=3]
+[ext_resource path="res://assets/unit/hpbar.png" type="Texture2D" id=4]
+[ext_resource path="res://assets/ui/kenvector_future.ttf" type="FontFile" id=5]
 [ext_resource path="res://unit/behavior/spawn.gd" type="Script" id=6]
 [ext_resource path="res://unit/unit.gd" type="Script" id=7]
 [ext_resource path="res://unit/behavior/follow.gd" type="Script" id=8]
@@ -12,11 +12,11 @@
 [ext_resource path="res://unit/behavior/advance.gd" type="Script" id=10]
 [ext_resource path="res://unit/behavior/attack.gd" type="Script" id=11]
 [ext_resource path="res://unit/behavior/orders.gd" type="Script" id=12]
-[ext_resource path="res://assets/pawns/infantry_red.png" type="Texture" id=13]
+[ext_resource path="res://assets/pawns/infantry_red.png" type="Texture2D" id=13]
 [ext_resource path="res://ui/hud.gd" type="Script" id=14]
 [ext_resource path="res://skills/modifiers.gd" type="Script" id=15]
-[ext_resource path="res://assets/map/light.png" type="Texture" id=16]
-[ext_resource path="res://assets/pawns/infantry_neutral.png" type="Texture" id=17]
+[ext_resource path="res://assets/map/light.png" type="Texture2D" id=16]
+[ext_resource path="res://assets/pawns/infantry_neutral.png" type="Texture2D" id=17]
 
 
 [sub_resource type="CanvasItemMaterial" id=45]
@@ -25,7 +25,7 @@ light_mode = 2
 [sub_resource type="CanvasItemMaterial" id=57]
 light_mode = 2
 
-[sub_resource type="DynamicFont" id=20]
+[sub_resource type="FontFile" id=20]
 size = 10
 font_data = ExtResource( 5 )
 
@@ -123,7 +123,7 @@ script = ExtResource( 15 )
 
 [node name="item_passives" type="Node" parent="behavior"]
 
-[node name="symbol" type="Sprite" parent="."]
+[node name="symbol" type="Sprite2D" parent="."]
 visible = false
 modulate = Color( 0.32549, 0.584314, 0.709804, 1 )
 light_mask = 3
@@ -134,7 +134,7 @@ texture = ExtResource( 2 )
 region_enabled = true
 region_rect = Rect2( 1, 1, 1, 1 )
 
-[node name="symbol_border" type="Sprite" parent="symbol"]
+[node name="symbol_border" type="Sprite2D" parent="symbol"]
 modulate = Color( 0, 0, 0, 1 )
 light_mask = 3
 use_parent_material = true
@@ -151,10 +151,10 @@ script = ExtResource( 14 )
 [node name="state" type="Label" parent="hud"]
 visible = false
 use_parent_material = true
-margin_left = -37.0
-margin_top = -37.0
-margin_right = 38.0
-margin_bottom = -21.0
+offset_left = -37.0
+offset_top = -37.0
+offset_right = 38.0
+offset_bottom = -21.0
 custom_fonts/font = SubResource( 20 )
 text = "unit"
 align = 1
@@ -162,7 +162,7 @@ __meta__ = {
 "_edit_use_anchors_": false
 }
 
-[node name="selection" type="Sprite" parent="hud"]
+[node name="selection" type="Sprite2D" parent="hud"]
 visible = false
 modulate = Color( 0.117647, 1, 0.211765, 0.588235 )
 position = Vector2( 0, 8 )
@@ -174,14 +174,14 @@ visible = false
 use_parent_material = true
 position = Vector2( 0, -19 )
 
-[node name="bar" type="Sprite" parent="hud/hpbar"]
+[node name="bar" type="Sprite2D" parent="hud/hpbar"]
 modulate = Color( 0.168627, 0.160784, 0.227451, 0.862745 )
 use_parent_material = true
 texture = ExtResource( 4 )
 region_enabled = true
 region_rect = Rect2( 2, 2, 22, 4 )
 
-[node name="red" type="Sprite" parent="hud/hpbar"]
+[node name="red" type="Sprite2D" parent="hud/hpbar"]
 modulate = Color( 0.682353, 0.172549, 0.172549, 1 )
 use_parent_material = true
 position = Vector2( -9, 0 )
@@ -191,7 +191,7 @@ offset = Vector2( 0, -1 )
 region_enabled = true
 region_rect = Rect2( 4, 7, 18, 2 )
 
-[node name="green" type="Sprite" parent="hud/hpbar"]
+[node name="green" type="Sprite2D" parent="hud/hpbar"]
 modulate = Color( 0.0392157, 0.643137, 0.117647, 1 )
 use_parent_material = true
 position = Vector2( -9, 0 )
@@ -203,13 +203,13 @@ region_rect = Rect2( 4, 7, 18, 2 )
 
 [node name="sprites" type="Node2D" parent="."]
 
-[node name="shadow" type="Sprite" parent="sprites"]
+[node name="shadow" type="Sprite2D" parent="sprites"]
 modulate = Color( 0, 0, 0, 0.0627451 )
 use_parent_material = true
 position = Vector2( 0, 8 )
 texture = ExtResource( 2 )
 
-[node name="body" type="AnimatedSprite" parent="sprites"]
+[node name="body" type="AnimatedSprite2D" parent="sprites"]
 use_parent_material = true
 position = Vector2( 0, 9 )
 frames = SubResource( 53 )
@@ -233,7 +233,7 @@ disabled = true
 shape = SubResource( 19 )
 disabled = true
 
-[node name="light" type="Light2D" parent="."]
+[node name="light" type="PointLight2D" parent="."]
 visible = false
 scale = Vector2( 6.25, 6.25 )
 texture = ExtResource( 16 )

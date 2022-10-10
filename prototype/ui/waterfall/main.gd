@@ -9,14 +9,14 @@ func _ready():
 
 var current_frame = 0
 func _capture():
-	get_viewport().set_clear_mode(Viewport.CLEAR_MODE_ONLY_NEXT_FRAME)
+	get_viewport().set_clear_mode(SubViewport.CLEAR_MODE_ONCE)
 	# Wait until the frame has finished before getting the texture.
-	yield(VisualServer, "frame_post_draw")
+	await RenderingServer.frame_post_draw
 
 	# Retrieve the captured image.
 	var img = get_viewport().get_texture().get_data()
 
-	# Flip it on the y-axis (because it's flipped).
+	# Flip it checked the y-axis (because it's flipped).
 	img.flip_y()
 	img.save_png("res://frame-{frame}.png".format({"frame": current_frame}))
 	current_frame += 1

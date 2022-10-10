@@ -39,7 +39,7 @@ class JumpPointFinder:
 		startNode.opened = true
 		
 		# while the open list is not empty
-		while (!openList.empty()):
+		while (!openList.is_empty()):
 			# pop the position of node which has the minimum `f` value.
 			node = openList.pop()
 			
@@ -151,7 +151,7 @@ class JumpPointFinder:
 	
 	
 	# * Find the neighbors for the given node. If the node has a parent,
-	#   prune the neighbors based on the jump point search algorithm, otherwise
+	#   prune the neighbors based checked the jump point search algorithm, otherwise
 	#   return all available neighbors.
 	#   @return {Array<Array<number>>}
 	# * The neighbors found.
@@ -249,7 +249,7 @@ class JumpPointFinder:
 		while (node.parent):
 			node = node.parent
 			path.append([node.x, node.y])
-		path.invert()
+		path.reverse()
 		return path
 	
 	
@@ -286,13 +286,13 @@ class JumpPointFinder:
 	
 #	/**
 #	 * Given the start and end coordinates, return all the coordinates lying
-#	 * on the line formed by these coordinates, based on Bresenham's algorithm.
+#	 * checked the line formed by these coordinates, based checked Bresenham's algorithm.
 #	 * http://en.wikipedia.org/wiki/Bresenham's_line_algorithm#Simplification
 #	 * @param {number} x0 Start x coordinate
 #	 * @param {number} y0 Start y coordinate
 #	 * @param {number} x1 End x coordinate
 #	 * @param {number} y1 End y coordinate
-#	 * @return {Array<Array<number>>} The coordinates on the line
+#	 * @return {Array<Array<number>>} The coordinates checked the line
 #	 */
 	func _interpolate(x0, y0, x1, y1):
 		var line = []

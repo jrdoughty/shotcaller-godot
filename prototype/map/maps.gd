@@ -36,10 +36,10 @@ func setup_leaders():
 
 func new_path(lane, team):
 	var path = game.map.lanes_paths[lane].duplicate()
-	if team == "blue": path.append(game.map.find_node("red_castle").global_position)
+	if team == "blue": path.append(game.map.find_child("red_castle").global_position)
 	if team == "red": 
-		path.invert()
-		path.append(game.map.find_node("blue_castle").global_position)
+		path.reverse()
+		path.append(game.map.find_child("blue_castle").global_position)
 	var start = path.pop_front()
 	return {
 		"start": start,
@@ -56,7 +56,7 @@ func setup_lanes():
 
 
 func line_to_array(line):
-	# from PoolVector2Array to Array
+	# from PackedVector2Array to Array
 	var array = []
 	for point in line.points:
 		array.append(point)
@@ -97,7 +97,7 @@ func setup_buildings():
 
 
 func create(template, lane, team, mode, point):
-	var unit = game.unit.spawn.spawn_unit(template.instance(), lane, team, mode, point)
+	var unit = game.unit.spawn.spawn_unit(template.instantiate(), lane, team, mode, point)
 	game.map.add_child(unit)
 	unit.reset_unit()
 	game.all_units.append(unit)

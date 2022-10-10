@@ -1,7 +1,7 @@
 extends Control
 
-onready var team_red_container = $"%team_red_container"
-onready var team_blue_container = $"%team_blue_container"
+@onready var team_red_container = $"%team_red_container"
+@onready var team_blue_container = $"%team_blue_container"
 var entry_scene = preload("res://ui/scoreboard/score_board_entry.tscn")
 var is_ready = false
 
@@ -14,11 +14,11 @@ func _ready():
 
 func initialize(red_leaders : Array, blue_leaders : Array):
 	for red_leader_index in red_leaders.size():
-		var entry = entry_scene.instance()
+		var entry = entry_scene.instantiate()
 		team_red_container.add_child(entry)
 		entry.initialize_red_leader(red_leaders[red_leader_index])
 	for blue_leader_index in blue_leaders.size():
-		var entry = entry_scene.instance()
+		var entry = entry_scene.instantiate()
 		team_blue_container.add_child(entry)
 		entry.initialize_blue_leader(blue_leaders[blue_leader_index])
 	is_ready = true

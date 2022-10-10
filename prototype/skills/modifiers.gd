@@ -7,11 +7,11 @@ var extra_retreat_speed = 10
 
 var retreat_regen = 10
 
-export var hp_per_level : float = 10
-export var regen_per_level : float = 2
-export var damage_per_level : float = 2.5
-export var defense_per_level : float = 2
-export var attack_speed_per_level : float = 0.05
+@export var hp_per_level : float = 10
+@export var regen_per_level : float = 2
+@export var damage_per_level : float = 2.5
+@export var defense_per_level : float = 2
+@export var attack_speed_per_level : float = 0.05
 
 func _ready():
 	game = get_tree().get_current_scene()
@@ -34,7 +34,7 @@ func get_value(unit, mod_str):
 	var default = unit[mod_str]
 
 	match mod_str:
-		"speed": default = get_speed(unit)
+		"speed": default = get_velocity(unit)
 		"regen": default = get_regen(unit)
 		"attack_range": default = get_att_range(unit)
 	
@@ -52,7 +52,7 @@ func get_value(unit, mod_str):
 	return default + level_bonus
 
 
-func get_speed(unit):
+func get_velocity(unit):
 	var default = unit.speed
 	
 	if unit.hunting:
@@ -84,7 +84,7 @@ func add(unit, mod_str, mod_name, value):
 	})
 
 
-func remove(unit, mod_str, mod_name):
+func remove_at(unit, mod_str, mod_name):
 	for modifier in unit.current_modifiers[mod_str]:
 		if modifier.name == mod_name:
 			unit.current_modifiers[mod_str].erase(modifier)

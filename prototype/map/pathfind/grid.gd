@@ -26,7 +26,7 @@ class Grid:
 		"OnlyWhenNoObstacles": 4  # don't cross corners
 	}
 	
-	func _init(_width, _height, _matrix = []):
+	func _init(_width,_height,_matrix = []):
 		
 		if _matrix.size():
 			_height = _matrix.size()
@@ -69,7 +69,7 @@ class Grid:
 		if (!matrix):
 				return newNodes
 		
-		assert( matrix.size() != height or matrix[0].size() != width, "ERROR: Matrix size does not fit")
+		assert(matrix.size() != height or matrix[0].size() != width) #,"ERROR: Matrix size does not fit")
 		
 		
 		for i in range(height):
@@ -110,7 +110,7 @@ class Grid:
 		return (x >= 0 and x < width) and (y >= 0 and y < height)
 	
 #
-# * Set whether the node on the given position is walkable.
+# * Set whether the node checked the given position is walkable.
 # * NOTE: throws exception if the coordinate is not inside the grid.
 # * @param {number} x - The x coordinate of the node.
 # * @param {number} y - The y coordinate of the node.
@@ -235,10 +235,10 @@ class Grid:
 
 # * A node in grid. 
 # * This class holds some basic information about a node and custom 
-# * attributes may be added, depending on the algorithms' needs.
+# * attributes may be added, depending checked the algorithms' needs.
 # * @constructor
-# * @param {number} x - The x coordinate of the node on the grid.
-# * @param {number} y - The y coordinate of the node on the grid.
+# * @param {number} x - The x coordinate of the node checked the grid.
+# * @param {number} y - The y coordinate of the node checked the grid.
 # * @param {boolean} [walkable] - Whether this node is walkable.
 #
 class GridNode:
@@ -252,7 +252,7 @@ class GridNode:
 	var closed
 	var parent
 	
-	func _init(_x, _y, _walkable):
+	func _init(_x,_y,_walkable):
 		self.x = _x
 		self.y = _y
 		self.walkable = _walkable

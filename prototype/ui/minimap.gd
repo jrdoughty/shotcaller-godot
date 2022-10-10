@@ -29,7 +29,7 @@ func _input(event):
 		# MOUSE CLICK
 		if event is InputEventMouseButton:
 			match event.button_index:
-				BUTTON_LEFT: 
+				MOUSE_BUTTON_LEFT: 
 					is_panning = true
 					pan_position = event.position
 					game.camera.is_panning = false
@@ -74,12 +74,12 @@ func get_map_texture():
 	self.visible = false
 	game.ui.rect_layer.visible = false
 	game.maps.buildings_visibility(false)
-	yield(get_tree(), "idle_frame")
+	await get_tree().idle_frame
 	# take snapshop
 	var data = game.get_viewport().get_texture().get_data()
 	data.flip_y()
 	var texture = ImageTexture.new()
-	texture.create_from_image(data, 1)
+	texture.create_from_image(data) #,1
 	# set minimap texture
 	var minimap_sprite = self.get_node("sprite")
 	minimap_sprite.set_texture(texture)
@@ -106,7 +106,7 @@ func get_map_texture():
 	self.visible = true
 	game.ui.rect_layer.visible = true
 	game.maps.buildings_visibility(true)
-	# turn off and callback
+	# turn unchecked and callback
 	update_map_texture = false
 	game.maps.map_loaded()
 
@@ -115,7 +115,7 @@ func corner_view():
 	map_sprite.visible = false
 	#map_tiles.visible = true
 	for tile in map_tiles.get_children(): tile.show()
-	yield(get_tree(), "idle_frame")
+	await get_tree().idle_frame
 	self.visible = true
 	game.ui.rect_layer.visible = true
 	game.ui.get_node("bot_left").visible = true
@@ -126,7 +126,7 @@ func hide_view():
 	#map_tiles.visible = false
 	for tile in map_tiles.get_children(): tile.hide()
 	# avoid input messing up
-	yield(get_tree(), "idle_frame")
+	await get_tree().idle_frame
 	self.visible = false
 	game.ui.rect_layer.visible = false
 	game.ui.get_node("bot_left").visible = false
@@ -178,20 +178,20 @@ func copy_symbol(unit, symbol):
 
 func follow_camera():
 	var window_height = get_viewport().size.y
-	var view_height = get_viewport().get_size_override().y
+	var view_height = get_viewport().get_size_2d_override().y
 	self.offset.y = view_height
 	game.ui.rect_layer.offset.y = view_height
 	if self.visible:
 		var half = game.map.size / 2
 		var s = float(game.map.size) / float(size)
 		var pos = Vector2( -half+(pan_position.x * s), half + ((pan_position.y - window_height) * s)  )
-		var offset = (size - cam_rect.rect_size.y) / 2
+		var offset = (size - cam_rect.size.y) / 2
 		if is_panning: game.camera.position = pos
-		cam_rect.rect_position = Vector2(offset,offset-size) + game.camera.position / s
-		if cam_rect.rect_position.x < 0: cam_rect.rect_position.x = 0
-		if cam_rect.rect_position.x > offset*2: cam_rect.rect_position.x = offset*2
-		if cam_rect.rect_position.y < -size: cam_rect.rect_position.y = -size
-		if cam_rect.rect_position.y > -cam_rect.rect_size.y: cam_rect.rect_position.y = -cam_rect.rect_size.y
+		cam_rect.position = Vector2(offset,offset-size) + game.camera.position / s
+		if cam_rect.position.x < 0: cam_rect.position.x = 0
+		if cam_rect.position.x > offset*2: cam_rect.position.x = offset*2
+		if cam_rect.position.y < -size: cam_rect.position.y = -size
+		if cam_rect.position.y > -cam_rect.size.y: cam_rect.position.y = -cam_rect.size.y
 
 
 func move_symbols():

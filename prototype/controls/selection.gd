@@ -33,7 +33,7 @@ func _unhandled_input(event):
 		if game.camera.zoom.x <= 1:
 			match event.button_index:
 				
-				BUTTON_LEFT: 
+				MOUSE_BUTTON_LEFT: 
 					match game.control_state:
 						"selection": select(point)
 						"teleport": teleport(game.selected_unit, point)
@@ -41,9 +41,9 @@ func _unhandled_input(event):
 						"move": move(game.selected_unit, point)
 						"lane": change_lane(game.selected_unit, point)
 				
-				BUTTON_RIGHT: 
+				MOUSE_BUTTON_RIGHT: 
 					match game.control_state:
-						"selection": advance(game.selected_unit, point)#unselect()
+						"selection": advance(game.selected_unit, point)#deselect()
 						"teleport": teleport(game.selected_unit, point)
 						"advance": advance(game.selected_unit, point)
 						"move": move(game.selected_unit, point)
@@ -54,7 +54,7 @@ func _unhandled_input(event):
 		# MAP CLICK ZOOM IN
 		else: 
 			match event.button_index:
-				BUTTON_LEFT: 
+				MOUSE_BUTTON_LEFT: 
 					if(game.camera._touches_info.num_touch_last_frame < 1 and game.camera._touches.size() == 0): #prevent touches converted to clicks from triggering a zoom
 						game.camera.zoom_reset()
 						game.camera.global_position = point - game.map.mid
@@ -67,7 +67,7 @@ func _unhandled_input(event):
 		
 		# MAP TOUCH ZOOM IN
 		else: 
-			if(game.camera._touches_info.num_touch_last_frame < 1):#prevent weird warps from taking one figure off at a time
+			if(game.camera._touches_info.num_touch_last_frame < 1):#prevent weird warps from taking one figure unchecked at a time
 				game.camera.zoom_reset()
 				game.camera.global_position = point - game.map.mid
 
@@ -82,7 +82,7 @@ func select(point):
 
 
 func select_unit(unit):
-	unselect()
+	deselect()
 	game.selected_unit = unit
 	
 	if game.can_control(unit) and unit.type == "leader":
@@ -103,7 +103,7 @@ func select_unit(unit):
 		game.ui.shop_button.button_down()
 
 
-func unselect():
+func deselect():
 	game.control_state = "selection"
 	
 	if game.selected_unit:
@@ -116,7 +116,7 @@ func unselect():
 	
 	var buttons = game.ui.leaders_icons.buttons_name
 	for all_leader_name in buttons: 
-		buttons[all_leader_name].pressed = false
+		buttons[all_leader_name].button_pressed = false
 	game.unit.follow.draw_path(null)
 	game.selected_unit = null
 	game.selected_leader = null
@@ -139,7 +139,7 @@ func advance(unit, point):
 func attack(unit, point):
 	if unit.attacks and game.can_control(unit):
 		var order_point = order(unit, point)
-		game.unit.attack.start(unit, order_point)
+		game.unit.attack.start(Callable(unit,order_point))
 
 func teleport(unit, point):
 	if unit.moves and game.can_control(unit):

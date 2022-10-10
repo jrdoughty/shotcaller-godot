@@ -1,9 +1,9 @@
 extends PanelContainer
 
-onready var leader_select_menu_panel = preload("res://ui/team_selection/leader_select_menu_panel.tscn")
-onready var leader_select_menu = preload("res://ui/team_selection/leader_select_panel.tscn")
-onready var red_team_container : VBoxContainer = $"%red_team_container"
-onready var blue_team_container : VBoxContainer = $"%blue_team_container"
+@onready var leader_select_menu_panel = preload("res://ui/team_selection/leader_select_menu_panel.tscn")
+@onready var leader_select_menu = preload("res://ui/team_selection/leader_select_panel.tscn")
+@onready var red_team_container : VBoxContainer = $"%red_team_container"
+@onready var blue_team_container : VBoxContainer = $"%blue_team_container"
 
 
 func _ready():
@@ -21,8 +21,8 @@ func handle_add_leader_red():
 
 
 func handle_add_leader(team):
-	var panel_instance = leader_select_menu_panel.instance()
-	panel_instance.connect("select_leader", self, "handle_select_leader", [panel_instance])
+	var panel_instance = leader_select_menu_panel.instantiate()
+	panel_instance.connect("select_leader",Callable(self,"handle_select_leader").bind(panel_instance))
 	match team:
 		'red':
 			red_team_container.add_child(panel_instance)
@@ -33,10 +33,10 @@ func handle_add_leader(team):
 
 
 func handle_select_leader(panel_instance):
-	var menu = leader_select_menu.instance()
+	var menu = leader_select_menu.instantiate()
 	add_child(menu)
 	if panel_instance.team == 'blue': menu.clear_color_remap()
-	menu.connect("leader_selected", self, "handle_leader_selected", [panel_instance, menu])
+	menu.connect("leader_selected",Callable(self,"handle_leader_selected").bind(panel_instance, menu))
 
 
 func handle_leader_selected(leader, leader_select_panel_instance, menu):

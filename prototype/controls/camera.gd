@@ -26,7 +26,7 @@ var default_zoom_sensitivity = .1
 func _ready():
 	game = get_tree().get_current_scene()
 	zoom = zoom_default
-	yield(get_tree(), "idle_frame")
+	await get_tree().idle_frame
 
 
 func _unhandled_input(event):
@@ -138,8 +138,8 @@ func focus_leader(index):
 			game.selection.select_unit(leader)
 			var buttons = game.ui.leaders_icons.buttons_name
 			for all_leader_name in buttons: 
-				buttons[all_leader_name].pressed = false
-			buttons[leader.name].pressed = true
+				buttons[all_leader_name].button_pressed = false
+			buttons[leader.name].button_pressed = true
 
 
 func zoom_reset(): 
