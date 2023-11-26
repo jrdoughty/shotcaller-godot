@@ -10,6 +10,7 @@ var block_template:PackedScene = preload("res://collision/blocks/block_template.
 var tile_size := 64
 var half_tile_size := tile_size / 2
 var current_map : Node2D
+var cached_units_per_pos_rad : Dictionary = {}
 
 
 
@@ -24,13 +25,16 @@ func setup_quadtree(map):
 	var bound = Rect2(Vector2.ZERO, Vector2(map.size.x, map.size.y))
 	quad = create_quadtree(bound, 16, 16)
 
-
 func get_units_in_radius(pos, rad):
-	var quad_units = quad.get_units_in_radius(pos, rad)
 	var in_radius_units = []
-	for unit1 in quad_units:
-		var pos1 = unit1.global_position
-		if pos.distance_to(pos1) <= rad: in_radius_units.append(unit1)
+	if(cached_units_per_pos_rad.has(pos) and cached_units_per_pos_rad[pos].has(rad)):
+		in_radius_units = cached_units_per_pos_rad[pos][rad]
+	else:
+		var quad_units = quad.get_units_in_radius(pos, rad)
+		for unit1 in quad_units:
+			var pos1 = unit1.global_position
+			if pos.distance_to(pos1) <= rad: in_radius_units.append(unit1)
+		cached_units_per_pos_rad[pos] = {rad:in_radius_units}
 	return in_radius_units
 
 
@@ -135,4 +139,4 @@ func physics_process(delta):
 		unit1.last_position2 = unit1.last_position
 		unit1.last_position = unit1.global_position
 
-
+	cached_units_per_pos_rad.clear()
