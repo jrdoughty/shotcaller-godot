@@ -60,14 +60,22 @@ func _get_cheapest_plan(plans):
 # need to iterate from the beginning to find all solutions.
 #
 # Recursive planning is bounded and rejects repeated unsatisfied states.
+#
+# "satisfied" collects the expected values of facts that this branch already
+# requires and that currently hold in the world (at this node or an ancestor).
+# A planned action whose preconditions negate one of those facts would leave
+# the goal unsatisfied after the plan runs, so such branches are rejected.
 # Returns true if the path has a solution.
-func _build_plans(step, agent, visited_states: Dictionary = {}, depth: int = 0):
+func _build_plans(
+	step, agent, visited_states: Dictionary = {}, depth: int = 0, satisfied: Dictionary = {}
+):
 	var has_followup := false
 
 	# Each node in the graph has its own desired state.
 	var state: Dictionary = step.state.duplicate()
 
 	# Check whether the current state is satisfied.
+	var node_satisfied: Dictionary = {}
 	for state_name in step.state:
 		var actual_state = agent.get_state(state_name)
 		if actual_state is Object:
@@ -78,6 +86,7 @@ func _build_plans(step, agent, visited_states: Dictionary = {}, depth: int = 0):
 		var expected_state = state[state_name]
 		if expected_state == actual_state or expected_state == world_state:
 			state.erase(state_name)
+			node_satisfied[state_name] = expected_state
 
 	# If the state is empty, the branch already found a solution.
 	if state.is_empty():
@@ -90,6 +99,11 @@ func _build_plans(step, agent, visited_states: Dictionary = {}, depth: int = 0):
 		return false
 	var next_visited_states = visited_states.duplicate()
 	next_visited_states[state_signature] = true
+
+	# Facts satisfied at this node or any ancestor, with their expected values.
+	var satisfied_so_far: Dictionary = satisfied.duplicate()
+	for state_name in node_satisfied:
+		satisfied_so_far[state_name] = node_satisfied[state_name]
 
 	for action in _actions:
 		if not action.is_valid(agent):
@@ -106,8 +120,28 @@ func _build_plans(step, agent, visited_states: Dictionary = {}, depth: int = 0):
 				should_use_action = true
 
 		if should_use_action:
-			# Add action preconditions to the desired state.
+			# Add action preconditions to the desired state. A precondition
+			# that contradicts an outstanding requirement in this branch, or
+			# a fact that an ancestor already requires to stay satisfied,
+			# would make the plan unable to achieve the goal: reject it.
 			var preconditions: Dictionary = action.get_preconditions()
+			var conflicts := false
+			for precondition in preconditions:
+				var value = preconditions[precondition]
+				if (
+					(
+						desired_state.has(precondition)
+						and desired_state[precondition] != value
+					)
+					or (
+						satisfied_so_far.has(precondition)
+						and satisfied_so_far[precondition] != value
+					)
+				):
+					conflicts = true
+					break
+			if conflicts:
+				continue
 			for precondition in preconditions:
 				desired_state[precondition] = preconditions[precondition]
 
@@ -120,7 +154,9 @@ func _build_plans(step, agent, visited_states: Dictionary = {}, depth: int = 0):
 			# If desired state is empty, this action can be included.
 			# If it is not empty, _build_plans is called again recursively
 			# so it can try to find actions that satisfy the current state.
-			if desired_state.is_empty() or _build_plans(step_node, agent, next_visited_states, depth + 1):
+			if desired_state.is_empty() or _build_plans(
+				step_node, agent, next_visited_states, depth + 1, satisfied_so_far
+			):
 				step.children.append(step_node)
 				has_followup = true
 
