@@ -1,0 +1,29 @@
+name: Godot tests
+
+# Runs the headless automated test suite (prototype/tests) and fails when
+# any assertion fails. The suite exits non-zero on failure via
+# res://tests/test_runner.tscn (see prototype/tests/README.md).
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Godot 4.7 (Linux x86_64)
+        run: |
+          curl -sL -o godot.zip \
+            https://github.com/godotengine/godot/releases/download/4.7-stable/Godot_v4.7-stable_linux.x86_64.zip
+          unzip -q godot.zip
+          chmod +x Godot_v4.7-stable_linux.x86_64
+
+      # .godot/ is not committed, so import resources before running tests.
+      - name: Import project resources
+        run: ./Godot_v4.7-stable_linux.x86_64 --headless --path prototype --import
+
+      - name: Run test suite
+        run: ./Godot_v4.7-stable_linux.x86_64 --headless --path prototype res://tests/test_runner.tscn
