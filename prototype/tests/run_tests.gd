@@ -10,6 +10,7 @@ const CollisionTests = preload("res://tests/unit/test_collisions.gd")
 const MovementTests = preload("res://tests/unit/test_movement.gd")
 const NavigationTests = preload("res://tests/unit/test_navigation.gd")
 const OrderActionTests = preload("res://tests/unit/test_order_action.gd")
+const GoalInteractionsTests = preload("res://tests/unit/test_goal_interactions.gd")
 const OrdersPanelSignalTests = preload("res://tests/unit/test_orders_panel_signal.gd")
 const PlannerTests = preload("res://tests/unit/test_planner.gd")
 
@@ -29,6 +30,7 @@ func _ready() -> void:
 	MovementTests.new().run(self)
 	NavigationTests.new().run(self)
 	OrderActionTests.new().run(self)
+	GoalInteractionsTests.new().run(self)
 	OrdersPanelSignalTests.new().run(self)
 	PlannerTests.new().run(self)
 
