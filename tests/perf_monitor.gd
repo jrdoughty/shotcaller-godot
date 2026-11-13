@@ -65,7 +65,54 @@ func _process(_delta: float) -> void:
 		Performance.get_monitor(Performance.OBJECT_COUNT),
 		OS.get_static_memory_usage() / 1048576,
 	])
+
+	# Orphan check: living, visible units NOT in all_units. The erase-on-death
+	# variant removes corpses from the list, and recycle() revives them without
+	# re-appending — every revival after that is an orphan (invisible to the
+	# GOAP pump, collisions, selection, and UI). Expect 0 on main's pump.
+	var orphans := 0
+	var map = WorldState.get_state("map")
+	var container = map.unit_container if map else null
+	if container:
+		var in_list := {}
+		for unit in all_units:
+			if is_instance_valid(unit):
+				in_list[unit.get_instance_id()] = true
+		for child in container.get_children():
+			if not is_instance_valid(child) or not ("dead" in child):
+				continue
+			if child.dead or not child.visible:
+				continue
+			if not in_list.has(child.get_instance_id()):
+				orphans += 1
+	print("ORPHAN: t=%3.0fs living_not_in_all_units=%d list_size=%d" % [now / 1000.0, orphans, all_units.size()])
+
 	frames = 0
+
+	# --- Experiment attribution (exp/erase-ab only): every 10 s, print the
+	# per-second pump/collision cost split by dead vs alive, plus planner
+	# calls on corpses. Only active when DSH_GOAP_DIAG=1.
+	if Goap.diag and int(now) % 10 == 0:
+		var d: Dictionary = Goap.take_diag()
+		var c: Dictionary = Collisions.take_diag()
+		var per_tick := float(d["ticks"]) if d["ticks"] > 0 else 1.0
+		var coll_per_tick := float(c["coll_us"]) / maxf(float(c["coll_ticks"]), 1.0)
+		print("DIAG: mode=%s pump=%5.1fms/t (alive %5.1f dead %5.1f) goal=%4.1f plan=%4.1f follow=%4.1f ms/t | plans=%d (dead %d) | calls/t=%4.1f (dead %4.1f skipped_dead/t=%5.1f) | coll=%5.1fms/t n/t=%4.1f" % [
+			Goap.pump_mode,
+			float(d["pump_us"]) / 1000.0 / per_tick,
+			float(d["pump_us_alive"]) / 1000.0 / per_tick,
+			float(d["pump_us_dead"]) / 1000.0 / per_tick,
+			(float(d["goal_alive"]) + float(d["goal_dead"])) / 1000.0 / per_tick,
+			(float(d["plan_alive"]) + float(d["plan_dead"])) / 1000.0 / per_tick,
+			(float(d["follow_alive"]) + float(d["follow_dead"])) / 1000.0 / per_tick,
+			int(d["plans_alive"]) + int(d["plans_dead"]),
+			int(d["plans_dead"]),
+			float(d["calls_alive"] + d["calls_dead"]) / per_tick,
+			float(d["calls_dead"]) / per_tick,
+			float(d["skipped_dead"]) / per_tick,
+			coll_per_tick / 1000.0,
+			float(c["coll_n"]) / maxf(float(c["coll_ticks"]), 1.0),
+		])
 
 
 func _physics_process(_delta: float) -> void:

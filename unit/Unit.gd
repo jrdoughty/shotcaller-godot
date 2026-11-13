@@ -41,6 +41,11 @@ var mirror:bool = false
 var texture:Dictionary
 var symbol:bool = false
 var current_modifiers = Modifiers.new_modifiers()
+# --- EXPERIMENT SCAFFOLDING (exp/erase-ab only; env-gated, off by default) ---
+# DSH_ERASE_ON_DEATH=1 -> d15ca30's WorldState all_units.erase(self) on death
+# ai_delay -> d15ca30's stagger phase counter (unused unless DSH_GOAP_MODE=stagger)
+var erase_on_death:bool = OS.get_environment("DSH_ERASE_ON_DEATH") == "1"
+var ai_delay:int = -1
 
 # SELECTION
 @export var selectable:bool = false
@@ -406,6 +411,8 @@ func take_hit(attacker, incoming_projectile = null, hit_modifiers = {}) -> void:
 		if self.current_hp <= 0:
 			self.current_hp = 0
 			self.die()
+			if erase_on_death:
+				WorldState.get_state("all_units").erase(self)
 			if self.type == "leader":
 				var player_team = WorldState.get_state("player_team")
 				if self.team == player_team:

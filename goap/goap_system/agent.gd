@@ -166,6 +166,25 @@ func _on_action_changed(action) -> void:
 # the highest priority. if it's not, it requests the action planner a new plan
 # for the new high priority goal.
 func goap_process(delta):
+	if Goap.diag:
+		# Experiment-only attribution: cost of goal scan / replan / plan follow,
+		# split by whether the unit being processed is dead.
+		var dead: bool = _unit.dead
+		var t1 := Time.get_ticks_usec()
+		var goal = _get_best_goal()
+		var t2 := Time.get_ticks_usec()
+		Goap.diag_cost(dead, "goal", t2 - t1)
+		if goal != _current_goal:
+			var plan: Array = []
+			if goal:
+				plan = Goap.get_action_planner().get_plan(self, goal)
+				Goap.diag_plan(dead)
+			Goap.diag_cost(dead, "plan", Time.get_ticks_usec() - t2)
+			_replace_plan(goal, plan)
+		else:
+			_follow_plan(_current_plan, delta)
+			Goap.diag_cost(dead, "follow", Time.get_ticks_usec() - t2)
+		return
 	var goal = _get_best_goal()
 	if goal != _current_goal:
 		var plan: Array = []

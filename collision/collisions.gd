@@ -62,10 +62,38 @@ func setup(unit):
 			unit.attack_hit_radius = attack.shape.radius
 
 
+# --- EXPERIMENT SCAFFOLDING (exp/erase-ab only; env-gated, off by default) ---
+# DSH_GOAP_DIAG=1 -> time the collision/movement pass per physics tick
+var diag: bool = OS.get_environment("DSH_GOAP_DIAG") == "1"
+var _coll_us := 0
+var _coll_ticks := 0
+var _coll_n := 0
+
+
+func take_diag() -> Dictionary:
+	var out := {"coll_us": _coll_us, "coll_ticks": _coll_ticks, "coll_n": _coll_n}
+	_coll_us = 0
+	_coll_ticks = 0
+	_coll_n = 0
+	return out
+
+
 func physics_process(delta):
+	if not diag:
+		pass_physics(delta)
+		return
+	var t0 := Time.get_ticks_usec()
+	pass_physics(delta)
+	_coll_us += Time.get_ticks_usec() - t0
+	_coll_ticks += 1
+
+
+func pass_physics(delta):
 	quad.clear()
 	
 	var all_units = WorldState.get_state("all_units")
+	if diag:
+		_coll_n += all_units.size()
 	for unit1 in all_units:
 		if unit1.collide and not unit1.dead:
 			quad.add_body(unit1)
