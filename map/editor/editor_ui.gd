@@ -10,10 +10,18 @@ extends Control
 # map_editor.gd does the work, which is also what keeps this file out of the
 # headless tests.
 #
+# Shape (M6): a ModePanel row of four toggle buttons sits at the TOP-RIGHT of the
+# screen and picks the mode — "Lanes (1)", "Buildings (2)", "Map (3)",
+# "Tiles (4)". The left ToolPanel shows ONLY the active mode's controls, pinned:
+# there is no ScrollContainer anywhere, so no control can ever scroll out of
+# reach. The Undo/Redo row and the log are visible in every mode, and the log is
+# the ONLY vertically scrolling region in the whole editor UI.
+#
 # Mouse policy: this node covers the whole screen, so it IGNORES mouse input and
-# only the panel (and its ScrollContainer) swallow clicks. A click that lands on
-# the panel never reaches map_editor.gd's _unhandled_input, which is how the map
-# tools stay click-accurate next to the tool panel.
+# only the two panels swallow clicks (the log's scrollbar swallows its own).
+# A click that lands on a panel never reaches map_editor.gd's _unhandled_input,
+# which is how the map tools stay click-accurate next to the tool panel, and the
+# mouse wheel over a panel scrolls the log instead of zooming the camera.
 # =============================================================================
 
 const MapStore = preload("res://map/editor/map_store.gd")
@@ -24,6 +32,37 @@ const PANEL_WIDTH := 300.0
 const LOG_LINES := 80
 const TILE_ICON_PX := 96
 
+# The mode vocabulary is SHARED with the host: map_editor.gd keys its own
+# `mode` variable with exactly these names (plus "" for no tool), reads MODE_KEYS
+# for the 1-4 shortcuts, and MODE_LABELS is the one source of the button order:
+# GDScript dictionaries preserve insertion order, so iterating this dictionary
+# gives Lanes, Buildings, Map, Tiles everywhere (buttons, tool boxes, tests).
+const MODE_LABELS := {
+	"lane": "Lanes (1)",
+	"building": "Buildings (2)",
+	"map": "Map (3)",
+	"tile": "Tiles (4)",
+}
+const MODE_TOOL_BOX_NAMES := {
+	"lane": "LaneTools",
+	"building": "BuildingTools",
+	"map": "MapTools",
+	"tile": "TileTools",
+}
+# Plain main-row digits only, no numpad, no modifiers (see map_editor.gd's
+# _unhandled_input guard). KEY_3 is "map" because "map" is the UI-only mode: the
+# file buttons act through signals, so no canvas click is ever routed to it.
+const MODE_KEYS := {KEY_1: "lane", KEY_2: "building", KEY_3: "map", KEY_4: "tile"}
+const MODE_TOOLTIPS := {
+	"lane": "Left-click adds a snapped point to the selected lane. Right-click drag "
+			+ "moves an existing lane point. Escape exits.",
+	"building": "Left-click places the selected building under the selected team. "
+			+ "Right-click drag moves a placed building. Escape exits.",
+	"map": "File operations for the map being edited: open, save, validate, play, exit.",
+	"tile": "Left-click paints the selected tile, right-click erases, drag works. "
+			+ "Escape exits.",
+}
+
 signal new_map_requested
 signal open_map_requested(map_name: String)
 signal save_map_requested
@@ -31,10 +70,10 @@ signal delete_map_requested(map_name: String)
 signal validate_requested
 signal play_requested
 signal exit_requested
-signal lane_mode_requested(active: bool)
-signal building_mode_requested(active: bool)
-signal tile_mode_requested(active: bool)
-signal move_mode_requested(active: bool)
+# ONE signal for every mode: the mode name when a button lights, "" when it
+# unlights (re-press, Escape-equivalent, or the host deselecting). M6 replaced
+# the four per-tool mode signals with this.
+signal mode_requested(mode_name: String)
 signal new_lane_requested
 signal lane_selected(lane_name: String)
 signal undo_requested
@@ -52,12 +91,13 @@ var _team_option: OptionButton
 var _brush_option: OptionButton
 var _tile_option: OptionButton
 var _block_option: OptionButton
-var _lane_toggle: Button
-var _building_toggle: Button
-var _tile_toggle: Button
-var _move_toggle: Button
 var _mirror_toggle: Button
 var _log: RichTextLabel
+
+# mode name -> the top-right Button, and mode name -> that mode's left-panel
+# box. These two dictionaries are the whole mode plumbing.
+var _mode_buttons: Dictionary[String, Button] = {}
+var _mode_tools: Dictionary[String, Control] = {}
 
 var _block_values: Array[int] = []
 var _picker_tiles: Array[Dictionary] = []
@@ -73,6 +113,8 @@ func _ready() -> void:
 # ---------------------------------------------------------------------------
 
 func _build() -> void:
+	_build_mode_panel()
+
 	var panel := PanelContainer.new()
 	panel.name = "ToolPanel"
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -83,22 +125,91 @@ func _build() -> void:
 	panel.offset_bottom = 0.0
 	add_child(panel)
 
-	# More controls than fit a 600px-tall window, so the panel scrolls.
-	var scroll := ScrollContainer.new()
-	scroll.name = "Scroll"
-	scroll.mouse_filter = Control.MOUSE_FILTER_STOP
-	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	panel.add_child(scroll)
-
+	# M6: NO ScrollContainer. Every mode's controls fit in its own box, the
+	# History row is always there, and only the log at the bottom scrolls.
 	var box := VBoxContainer.new()
 	box.name = "Tools"
 	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	box.custom_minimum_size = Vector2(PANEL_WIDTH - 24.0, 0.0)
-	scroll.add_child(box)
+	panel.add_child(box)
 
+	for mode_name: String in MODE_LABELS:
+		var tools := VBoxContainer.new()
+		tools.name = MODE_TOOL_BOX_NAMES[mode_name]
+		tools.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		box.add_child(tools)
+		_mode_tools[mode_name] = tools
+		if mode_name == "lane":
+			_fill_lane_tools(tools)
+		elif mode_name == "building":
+			_fill_building_tools(tools)
+		elif mode_name == "map":
+			_fill_map_tools(tools)
+		else:
+			_fill_tile_tools(tools)
+
+	var history_row := HBoxContainer.new()
+	history_row.name = "HistoryRow"
+	box.add_child(history_row)
+	# Named (not "Button"/"Button2") so the always-visible History row is
+	# addressable from tests and from the scene tree.
+	_add_button(history_row, "Undo", "undo_requested", "Ctrl+Z.").name = "Undo"
+	_add_button(history_row, "Redo", "redo_requested", "Ctrl+Y.").name = "Redo"
+
+	_log = RichTextLabel.new()
+	_log.name = "Log"
+	_log.bbcode_enabled = false
+	# fit_content = false + EXPAND_FILL: the log takes the panel's remaining
+	# height and scrolls its own overflow. This is the editor's only scrollbar.
+	_log.fit_content = false
+	_log.scroll_following = true
+	# STOP, not IGNORE: its scrollbar has to be draggable, and ToolPanel's own
+	# STOP already keeps log clicks from reaching the map tools.
+	_log.mouse_filter = Control.MOUSE_FILTER_STOP
+	_log.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_log.custom_minimum_size = Vector2(PANEL_WIDTH - 24.0, 120.0)
+	box.add_child(_log)
+
+	# Nothing is lit until the host declares the boot mode (map_editor.gd's
+	# _ready calls _set_mode("map")); visibility lives ONLY in set_mode_active.
+	set_mode_active("", false)
+
+	refresh_map_list()
+	refresh_tile_picker()
+
+
+# The top-right mode row (M6): one ButtonGroup, so only one mode can be lit,
+# with allow_unpress so re-pressing the lit button deselects back to no tool.
+func _build_mode_panel() -> void:
+	var mode_panel := PanelContainer.new()
+	mode_panel.name = "ModePanel"
+	mode_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(mode_panel)
+	mode_panel.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT,
+			Control.PRESET_MODE_MINSIZE, 8.0)
+	mode_panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+
+	var row := HBoxContainer.new()
+	row.name = "ModeButtons"
+	mode_panel.add_child(row)
+
+	var group := ButtonGroup.new()
+	group.allow_unpress = true
+	for mode_name: String in MODE_LABELS:
+		var button := Button.new()
+		button.name = mode_name.capitalize() + "ModeButton"
+		button.text = MODE_LABELS[mode_name]
+		button.toggle_mode = true
+		button.button_group = group
+		button.tooltip_text = MODE_TOOLTIPS[mode_name]
+		button.toggled.connect(_on_mode_toggled.bind(mode_name))
+		row.add_child(button)
+		_mode_buttons[mode_name] = button
+
+
+# --- Map mode: the file operations, in the old top-of-panel order --------------
+
+func _fill_map_tools(box: VBoxContainer) -> void:
 	_map_option = OptionButton.new()
 	_map_option.tooltip_text = "Maps saved in user://maps/ (shipping maps are not editable)."
 	box.add_child(_map_option)
@@ -128,21 +239,25 @@ func _build() -> void:
 	_add_button(file_row, "Play", "play_requested", "Save and boot the map: player blue vs enemy red.")
 	_add_button(box, "Exit", "exit_requested", "Back to the main menu (unsaved edits are lost).")
 
-	_section(box, "Lanes")
+
+# --- Lane mode ------------------------------------------------------------------
+
+func _fill_lane_tools(box: VBoxContainer) -> void:
 	_lane_option = OptionButton.new()
-	_lane_option.tooltip_text = "The lane clicks edit in Draw lanes mode."
+	# Wording follows the mode panel: the old "Draw lanes" toggle is gone, the
+	# Lanes (1) button IS the mode.
+	_lane_option.tooltip_text = "The lane that Lanes mode edits."
 	box.add_child(_lane_option)
 	_lane_option.item_selected.connect(func(index: int) -> void:
 		lane_selected.emit(_lane_option.get_item_text(index)))
 	var lane_row := HBoxContainer.new()
 	box.add_child(lane_row)
 	_add_button(lane_row, "New lane", "new_lane_requested", "Add an empty lane and select it.")
-	_lane_toggle = _add_toggle(box, "Draw lanes",
-			func(active: bool) -> void: lane_mode_requested.emit(active))
 
-	_section(box, "Buildings")
-	_building_toggle = _add_toggle(box, "Place buildings",
-			func(active: bool) -> void: building_mode_requested.emit(active))
+
+# --- Building mode ---------------------------------------------------------------
+
+func _fill_building_tools(box: VBoxContainer) -> void:
 	_building_option = OptionButton.new()
 	_building_option.tooltip_text = "Building scene to instantiate (res://unit/buildings/)."
 	box.add_child(_building_option)
@@ -159,18 +274,10 @@ func _build() -> void:
 	_team_option.add_item("neutral")
 	_team_option.select(0)
 
-	# Built after Buildings and before Tiles on purpose: adjusting what the map
-	# already has comes before adding more detail.
-	_move_toggle = _add_toggle(box, "Move things",
-			func(active: bool) -> void: move_mode_requested.emit(active))
-	# One tooltip override: the shared toggle tooltip describes paint/erase.
-	_move_toggle.tooltip_text = ("Drag buildings (pre-placed ones too) and lane points. "
-			+ "Left-press grabs the nearest thing under the cursor, motion drags it on "
-			+ "the 64px grid, release commits. Escape exits.")
 
-	_section(box, "Tiles")
-	_tile_toggle = _add_toggle(box, "Paint tiles",
-			func(active: bool) -> void: tile_mode_requested.emit(active))
+# --- Tile mode -------------------------------------------------------------------
+
+func _fill_tile_tools(box: VBoxContainer) -> void:
 	_mirror_toggle = Button.new()
 	_mirror_toggle.text = "Mirror paint"
 	_mirror_toggle.toggle_mode = true
@@ -199,33 +306,6 @@ func _build() -> void:
 			+ "For walls, the source picks the team (0 = blue).")
 	box.add_child(_tile_option)
 
-	_section(box, "History")
-	var history_row := HBoxContainer.new()
-	box.add_child(history_row)
-	_add_button(history_row, "Undo", "undo_requested", "Ctrl+Z.")
-	_add_button(history_row, "Redo", "redo_requested", "Ctrl+Y.")
-
-	_log = RichTextLabel.new()
-	_log.name = "Log"
-	_log.bbcode_enabled = false
-	_log.fit_content = true
-	_log.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_log.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_log.custom_minimum_size = Vector2(PANEL_WIDTH - 24.0, 120.0)
-	box.add_child(_log)
-
-	refresh_map_list()
-	refresh_tile_picker()
-
-
-func _section(box: VBoxContainer, title: String) -> void:
-	# HSeparator, not Separator: Separator is abstract and cannot be constructed.
-	box.add_child(HSeparator.new())
-	var label := Label.new()
-	label.text = title
-	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	box.add_child(label)
-
 
 func _add_button(parent: Control, text: String, signal_name: String, tooltip: String) -> Button:
 	var button := Button.new()
@@ -233,16 +313,6 @@ func _add_button(parent: Control, text: String, signal_name: String, tooltip: St
 	button.tooltip_text = tooltip
 	if signal_name != "":
 		button.pressed.connect(_emit_request.bind(signal_name))
-	parent.add_child(button)
-	return button
-
-
-func _add_toggle(parent: Control, text: String, on_toggle: Callable) -> Button:
-	var button := Button.new()
-	button.text = text
-	button.toggle_mode = true
-	button.tooltip_text = "Click on the map: left places/paints, right erases (tiles). Escape exits."
-	button.toggled.connect(on_toggle)
 	parent.add_child(button)
 	return button
 
@@ -304,33 +374,18 @@ func log_line(line: String) -> void:
 		_log.text = "\n".join(lines.slice(lines.size() - LOG_LINES, lines.size()))
 
 
-# Re-sync mode toggles from the host after Escape / a mode switch / a map
-# install: only one tool mode may be lit at a time.
+# The ONE place mode visibility is driven from. Hidden Controls keep their
+# state (pickers stay alive across mode switches), and set_pressed_no_signal
+# keeps the ButtonGroup from echoing back into mode_requested.
 func set_mode_active(mode_name: String, active: bool) -> void:
-	var toggle := _toggle_for(mode_name)
-	if toggle == null:
-		return
-	toggle.set_pressed_no_signal(active)
-	if active:
-		for other in ["lane", "building", "tile", "move"]:
-			if other == mode_name:
-				continue
-			var other_toggle := _toggle_for(other)
-			if other_toggle != null:
-				other_toggle.set_pressed_no_signal(false)
+	var shown := active and mode_name != ""
+	for m in _mode_tools:
+		_mode_tools[m].visible = shown and m == mode_name
+	for m in _mode_buttons:
+		_mode_buttons[m].set_pressed_no_signal(shown and m == mode_name)
 
-
-func _toggle_for(mode_name: String) -> Button:
-	match mode_name:
-		"lane":
-			return _lane_toggle
-		"building":
-			return _building_toggle
-		"tile":
-			return _tile_toggle
-		"move":
-			return _move_toggle
-	return null
+func _on_mode_toggled(active: bool, mode_name: String) -> void:
+	mode_requested.emit(mode_name if active else "")
 
 
 # ---------------------------------------------------------------------------
@@ -385,7 +440,8 @@ func select_lane(lane_name: String) -> void:
 # Rebuild the tile and block pickers from the selected brush's layer. No map or
 # no layer (a hand-made map missing tiles/…): clear and disable, so the tile
 # tool refuses instead of painting into nothing. Called by the host on map
-# install, mode change and undo/redo, and by the brush dropdown itself.
+# install, mode change and undo/redo, and by the brush dropdown itself — on
+# hidden controls on purpose, so the pickers are never stale.
 func refresh_tile_picker() -> void:
 	# Preserve what the user picked when the list can offer it again: the host
 	# refreshes the picker after undo/redo and after map install, and resetting
