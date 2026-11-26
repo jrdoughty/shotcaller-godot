@@ -108,6 +108,21 @@ func _test_boot(harness, editor) -> void:
 			"the mode buttons read Lanes (1) / Buildings (2) / Map (3) / Tiles (4) and are "
 			+ "grouped toggles keyed 1-4")
 
+	# The mechanism behind "re-pressing the active mode deselects" and "exactly
+	# one lit": one shared ButtonGroup, and it permits unpressing.
+	var group_ok := true
+	var group: ButtonGroup = null
+	for mode_name in EditorUI.MODE_LABELS:
+		var mode_button: Button = ui._mode_buttons[mode_name]
+		if group == null:
+			group = mode_button.button_group
+		if group == null or mode_button.button_group != group:
+			group_ok = false
+		elif not group.allow_unpress:
+			group_ok = false
+	harness.check(group_ok,
+			"the mode buttons share one ButtonGroup with allow_unpress (a re-press deselects)")
+
 	if editor.map_root != null:
 		return
 	ui.new_map_requested.emit()
