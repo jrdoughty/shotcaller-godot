@@ -5,8 +5,13 @@ extends Node2D
 # =============================================================================
 # A scene, not an EditorPlugin: opened from the main menu, it authors maps with
 # the dock's three authoring tools (lanes, buildings, tiles — tiles with an
-# opt-out "Mirror paint" toggle, M5) plus a Move tool for repositioning
-# already-placed buildings and lane points, and they share the dock's
+# opt-out "Mirror paint" toggle, M5). M6 put mode choice in the editor's
+# top-right mode panel — Lanes (1), Buildings (2), Map (3), Tiles (4), keys 1-4
+# select them and Escape or a re-press exits — and folded repositioning INTO the
+# two authoring modes instead of a separate Move tool: in Lanes mode a
+# right-press grabs and drags a lane point, in Buildings mode a right-press
+# grabs and drags a building, each drag one undo action. Tiles keeps its own
+# left-paint / right-erase contract. The tools share the dock's
 # editor-free logic (lane_logic / building_logic / tile_brush_logic /
 # map_scaffold / map_validator, all RefCounted). What the dock gets from the
 # editor — UndoRedo, a canvas, a selection, click→world math — is rebuilt here:
@@ -35,7 +40,7 @@ const LaneOverlay = preload("res://map/editor/lane_overlay.gd")
 const GAME_SCENE := "res://game.tscn"
 const DEFAULT_LANE_COLOR := Color(1, 1, 1, 0.196078)
 const FALLBACK_MAP_SIZE := Vector2(1056, 1056)
-# How close a Move-tool click must land on a lane point or building, in
+# How close a right-press must land on a lane point or building to grab it, in
 # VIEWPORT pixels so the pick radius stays stable at any zoom level.
 const MOVE_PICK_RADIUS := 48.0
 
@@ -48,11 +53,12 @@ const MOVE_PICK_RADIUS := 48.0
 
 var map_root: Node2D = null
 var undo_redo := UndoRedo.new()
-var mode := ""  # "", "lane", "building", "tile", "move"
+var mode := ""  # "", "lane", "building", "map", "tile"  ("map" is UI-only)
 var _stroke: Dictionary = {}  # {"layer": TileMapLayer, "erase": bool, "undo": {}}
-# The active drag of the Move tool: {"kind": "lane"|"building", "node",
-# "index": int (lane points), "orig": Vector2 (the node-local start position)}.
-# One drag is exactly one undo action; no motion = no history entry.
+# The active right-press drag of the current tool mode: {"kind": "lane"|
+# "building", "node", "index": int (lane points), "orig": Vector2 (the node-local
+# start position)}. One drag is exactly one undo action; no motion = no history
+# entry. Lanes mode drags lane points only, Buildings mode buildings only.
 var _drag: Dictionary = {}
 
 # Editor-only visibility bookkeeping: hidden flags are serialized into the
@@ -63,6 +69,9 @@ var _editor_hidden: Array = []  # [{"node": Node, "visible": bool}]
 
 func _ready() -> void:
 	_connect_ui()
+	# M6 boot state: Map mode, so the file controls are what the author sees
+	# first (New map / Open). A tool mode is opt-in from the mode panel or keys.
+	_set_mode("map")
 	camera.make_current()
 	ui.set_map_root(null)
 	ui.log_line("New map or Open a saved map.")
@@ -76,10 +85,8 @@ func _connect_ui() -> void:
 	ui.validate_requested.connect(_on_validate)
 	ui.play_requested.connect(_on_play)
 	ui.exit_requested.connect(_on_exit)
-	ui.lane_mode_requested.connect(func(active: bool) -> void: _set_mode("lane" if active else ""))
-	ui.building_mode_requested.connect(func(active: bool) -> void: _set_mode("building" if active else ""))
-	ui.tile_mode_requested.connect(func(active: bool) -> void: _set_mode("tile" if active else ""))
-	ui.move_mode_requested.connect(func(active: bool) -> void: _set_mode("move" if active else ""))
+	# ONE mode signal for all four modes (M6): the mode name, or "" to deselect.
+	ui.mode_requested.connect(_set_mode)
 	ui.new_lane_requested.connect(_on_new_lane)
 	ui.lane_selected.connect(_sync_overlay)
 	ui.undo_requested.connect(undo)
@@ -96,7 +103,10 @@ func _install_map(map: Node2D, display_name := "untitled") -> void:
 	if map == null:
 		return
 	_commit_pending()
-	_set_mode("")
+	# M6: an active TOOL mode drops on map install (the thing it was editing is
+	# gone), but the UI-only Map mode stays lit so Open/Save/New remain visible.
+	if mode in ["lane", "building", "tile"]:
+		_set_mode("")
 
 	var old := map_root
 	if old != null and is_instance_valid(old):
@@ -311,17 +321,32 @@ func _unhandled_input(event: InputEvent) -> void:
 			redo()
 			get_viewport().set_input_as_handled()
 			return
+		# M6 mode shortcuts. The guards are here so the behavior is deterministic
+		# even though a focused Control normally eats its keys before they get
+		# to _unhandled_input: the map NAME field must accept typed digits, and
+		# only a bare main-row 1-4 selects a mode (no numpad, no modifiers).
+		# Re-pressing the key of the active mode deselects to no tool.
+		var focused := get_viewport().gui_get_focus_owner()
+		if not (focused is LineEdit) and not event.ctrl_pressed \
+				and not event.alt_pressed and not event.meta_pressed \
+				and EditorUI.MODE_KEYS.has(event.keycode):
+			var target: String = EditorUI.MODE_KEYS[event.keycode]
+			_set_mode("" if target == mode else target)
+			get_viewport().set_input_as_handled()
+			return
 
 	if mode == "" or map_root == null:
 		return
 	if mode == "lane":
 		_handle_lane_input(event)
+		_handle_drag_input(event, "lane")
 	elif mode == "building":
 		_handle_building_input(event)
+		_handle_drag_input(event, "building")
 	elif mode == "tile":
 		_handle_tile_input(event)
-	elif mode == "move":
-		_handle_move_input(event)
+	# "map" mode routes NO canvas clicks: its file buttons act through the panel
+	# signals, so the canvas stays inert while Map mode is lit.
 
 
 func _set_mode(new_mode: String) -> void:
@@ -548,40 +573,48 @@ func _handle_tile_input(event: InputEvent) -> void:
 
 
 # ---------------------------------------------------------------------------
-# Move tool (drag buildings and lane points; one undo action per drag)
+# Right-click move (M6): Lanes mode drags lane points, Buildings mode drags
+# buildings. One undo action per drag; the left button stays the tool's own
+# add/place action.
 # ---------------------------------------------------------------------------
 
-func _handle_move_input(event: InputEvent) -> void:
+# The old "Move things" handler with LEFT → RIGHT and a kind. A left click is
+# NOT consumed here: it belongs to the lane/building handler that ran first.
+func _handle_drag_input(event: InputEvent, kind: String) -> void:
 	if event is InputEventMouseButton:
 		var click := event as InputEventMouseButton
-		if click.button_index == MOUSE_BUTTON_LEFT:
-			if click.pressed:
-				_grab_move_target(click.position)
-			else:
-				_commit_pending()
-			get_viewport().set_input_as_handled()
+		if click.button_index != MOUSE_BUTTON_RIGHT:
 			return
+		if click.pressed:
+			_grab_move_target(click.position, kind)
+		else:
+			_commit_pending()
+		get_viewport().set_input_as_handled()
 	elif event is InputEventMouseMotion:
 		if _drag.is_empty():
 			return
 		# Same guard as tile strokes: if the release was eaten by the UI panel,
 		# end the drag instead of moving on every later mouse move.
-		if not (event.button_mask & MOUSE_BUTTON_MASK_LEFT):
+		if not (event.button_mask & MOUSE_BUTTON_MASK_RIGHT):
 			_commit_pending()
 			return
 		_drag_move(event.position)
 		get_viewport().set_input_as_handled()
 
 
-# Grab the NEAREST draggable thing under the cursor, in viewport pixels: any
-# lane point under lanes/, or any building under buildings/<team>/ (the
-# scaffold's pre-placed castle/barracks included). Position-only: names, team
-# metadata, subtypes and point counts never change; re-parenting is out of
-# scope (M5 fixed decision 3).
-func _grab_move_target(viewport_pos: Vector2) -> void:
+# Grab the NEAREST draggable thing of THIS MODE's kind under the cursor, in
+# viewport pixels: in Lanes mode any lane point under lanes/, in Buildings mode
+# any building under buildings/<team>/ (the scaffold's pre-placed
+# castle/barracks included). Kind scoping is the M6 owner decision: a Lanes-mode
+# right-press never grabs a building and a Buildings-mode one never grabs a lane
+# point. Position-only: names, team metadata, subtypes and point counts never
+# change; re-parenting is out of scope (M5 fixed decision 3).
+func _grab_move_target(viewport_pos: Vector2, kind: String) -> void:
 	var best: Dictionary = {}
-	_lanes_pick(viewport_pos, best)
-	_buildings_pick(viewport_pos, best)
+	if kind == "lane":
+		_lanes_pick(viewport_pos, best)
+	elif kind == "building":
+		_buildings_pick(viewport_pos, best)
 	if best.is_empty() or best.get("distance", INF) > MOVE_PICK_RADIUS:
 		return
 	# NO UndoRedo call at grab, on purpose: a press may be released without any
@@ -754,15 +787,15 @@ func _paint_cell_in_stroke(layer: TileMapLayer, coords: Vector2i, recorded: Dict
 		layer.set_cell(coords, source_id, atlas, 0)
 
 
-# Close ALL pending tool work — a move drag and a tile stroke — at the same
-# lifecycle points: release, Escape, mode switch, map install, save, validate,
-# play, exit, Undo/Redo. Safe to call when nothing is open.
+# Close ALL pending tool work — a right-press drag and a tile stroke — at the
+# same lifecycle points: release, Escape, mode switch, map install, save,
+# validate, play, exit, Undo/Redo. Safe to call when nothing is open.
 func _commit_pending() -> void:
 	_commit_drag()
 	_commit_stroke()
 
 
-# Close the active Move-tool drag as ONE undo action, created here at commit
+# Close the active right-press drag as ONE undo action, created here at commit
 # (never at grab — see _grab_move_target on why: the runtime UndoRedo cannot
 # cancel an opened action, and a press without motion must leave no trace). A
 # changed position commits; a position back at the original leaves no history
