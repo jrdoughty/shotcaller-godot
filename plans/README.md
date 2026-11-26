@@ -49,6 +49,7 @@ acceptance: [...]          # observable, testable outcomes
 | M3 | M | implemented 2026-11-21 (TileMapLayer port done; awaiting user editor verification) |
 | M4 | M | done 2026-11-23 (runtime map editor verified windowed by the user; suit green; two follow-up gaps found) |
 | M5 | M | implemented 2026-11-23 (Mirror paint toggle + Move things drag mode; regression-tested headlessly; awaiting user windowed verification) |
+| M6 | M | implemented 2026-11-26 (mode panel 1-4 + right-click move; regression-tested headlessly; awaiting user windowed verification) |
 
 Already landed (do not redo): Track A documentation truth pass; Track B
 arrival-dispatch fix + ReturnLumber; state-key lint + contract lint +
