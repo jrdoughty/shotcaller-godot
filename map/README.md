@@ -57,9 +57,13 @@ Tile-map battlefields and everything that populates them.
   wheel over it scrolls the log, over the map it zooms).
   **Move = right-click drag (M6):** in Lanes mode a right-press grabs the nearest
   **lane point** and drags it, in Buildings mode the nearest **building**
-  (pre-placed ones included); each drag is one undo step, snaps to the 64px grid
-  and is position-only (names, teams, subtypes and point counts never change); a
-  grab with no motion leaves no history entry. Left-click keeps adding lane
+  (pre-placed ones included), matched against the building's **selection
+  footprint** — the same `collisions/select` circle the game click-selects with,
+  not the node origin, so the visible body of a building is grabbable at any
+  zoom; a press that reaches nothing logs how far off it was. Each drag is one
+  undo step, snaps to the 64px grid and is position-only (names, teams, subtypes
+  and point counts never change); a grab with no motion leaves no history entry.
+  Left-click keeps adding lane
   points / placing buildings; Tiles keeps left-paint / right-erase. The store and
   the tool behaviors are regression-tested in `tests/unit/test_map_store.gd` /
   `test_map_editor_tools.gd`; windowed feel and layout are manual checks
