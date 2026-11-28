@@ -18,12 +18,24 @@ extends RefCounted
 #     and Escape deselecting, the LineEdit/Ctrl guards on the digit keys, a tool
 #     mode dropping on map install while Map mode survives, the boot mode, and
 #     the UI contract that ONLY the log scrolls (no ScrollContainer anywhere).
+#     The same states are ALSO driven through a real Button press
+#     (Button.set_pressed, the engine's own click path): only that path fires
+#     the previously lit button's toggled(false) before the clicked button's
+#     toggled(true), which is how clicking a mode used to end with NO mode
+#     selected and the left tool panel showing no tool box.
 #   - Right-click move (M6, kind-scoped): Lanes mode drags lane points only and
-#     Buildings mode drags buildings only — each asserted by the OTHER kind
-#     grabbing nothing. Drag math is the M5 one: 64px snap, one undo action per
-#     drag, undo/redo round-trip, a no-motion grab leaves no history entry
-#     (the windowed crash pull-request feedback), and the dragged lane shows in
-#     the overlay.
+#     Buildings mode drags buildings only — Lanes mode asserted by a building
+#     press grabbing nothing, Buildings mode asserted by the grabbed thing never
+#     being a lane (the scaffold puts its buildings on the lane, so a press on a
+#     lane point may legitimately grab the building under it). Buildings are
+#     picked by their SELECTION FOOTPRINT (collisions/select, the same data the
+#     game click-selects with) rather than by node origin, so right-clicking a
+#     building's visible body grabs it; a footprint grab keeps its grab offset on
+#     the first motion, and a press that reaches nothing logs the distance
+#     instead of refusing in silence. Drag math is the M5 one: 64px snap, one
+#     undo action per drag, undo/redo round-trip, a no-motion grab leaves no
+#     history entry (the windowed crash pull-request feedback), and the dragged
+#     lane shows in the overlay.
 #   - "Mirror paint" toggle (M5): on = a stroke writes its mirrored twin cells
 #     (M3 contract), off = only where clicked (asymmetric maps authorable).
 #     Asserted by cell VALUES and an erase->paint sequence, never by scaffold
@@ -46,6 +58,8 @@ func run(harness) -> void:
 		_test_move_building(harness, editor)
 		_test_move_lane_point(harness, editor)
 		_test_move_wiring(harness, editor)
+		_test_mode_button_press(harness, editor)
+		_test_building_footprint_pick(harness, editor)
 	editor.free()
 
 
@@ -469,7 +483,14 @@ func _test_move_wiring(harness, editor) -> void:
 			editor.get_viewport().get_canvas_transform()) * (lane as Line2D).get_point_position(0)
 	ui.mode_requested.emit("building")
 	editor._handle_drag_input(_rclick(lane_vp, true), "building")
-	harness.check(editor._drag.is_empty(), "Buildings mode never grabs a lane point")
+	harness.check(editor._drag.is_empty() or editor._drag.get("kind") == "building",
+			"Buildings mode never grabs a lane point")
+	# The scaffold puts its buildings ON the lane, so this press can now land on
+	# a building's selection ring (see _buildings_pick) and grab THAT building -
+	# which is what Buildings mode is for. What stays impossible is touching the
+	# lane itself: kind scoping is the assertion, not "nothing at all".
+	harness.check(not (editor._drag.get("node") is Line2D),
+			"no lane node is grabbable in Buildings mode")
 	editor._handle_drag_input(_rclick(lane_vp, false), "building")
 
 	# The top-left viewport corner is far from every lane point and building of
@@ -511,6 +532,133 @@ func _test_move_wiring(harness, editor) -> void:
 	harness.check(editor.mode == "", "Escape exits the active mode")
 	harness.check(_lit(ui).is_empty(), "Escape unlights the mode button")
 	harness.check(_always_visible(ui), "Undo/Redo and the log are visible with no mode")
+
+
+# ---------------------------------------------------------------------------
+# The click path, not the signal path: the reported bug was that clicking
+# Buildings (2) left the left panel with no tool box at all. Every other mode
+# test here drives mode_requested.emit() or the 1-4 hotkeys, which cannot reach
+# the failure - only a real Button press can, because the engine unpresses the
+# previously lit button (firing ITS toggled(false)) before the clicked button
+# reports its own toggled(true). Button.set_pressed() is that same path: it
+# flips status.pressed, runs _unpress_group(), then _toggled() - the very
+# sequence a mouse release produces.
+# ---------------------------------------------------------------------------
+
+func _test_mode_button_press(harness, editor) -> void:
+	var ui = ui_of(editor)
+	var events: Array = []
+	var recorder := func(mode_name: String) -> void: events.append(mode_name)
+	ui.mode_requested.connect(recorder)
+
+	editor._set_mode("map")
+	harness.check(_lit(ui) == ["map"], "Map mode is lit before the press test")
+	harness.check(events.is_empty(), "a programmatic mode change emits no mode event")
+
+	ui._mode_buttons["building"].set_pressed(true)
+	harness.check(editor.mode == "building", "clicking Buildings (2) enters Buildings mode")
+	harness.check(_lit(ui) == ["building"], "the Buildings button is the only lit button")
+	harness.check(_visible_tools(ui) == ["building"],
+			"clicking Buildings (2) shows the Buildings tool box (the reported empty left panel)")
+	harness.check(events == ["building"],
+			"one mode event: the outgoing mode's toggled(false) is a group switch, not a deselect")
+
+	ui._mode_buttons["map"].set_pressed(true)
+	harness.check(editor.mode == "map", "clicking Map mode (3) out of Buildings enters Map mode")
+	harness.check(_lit(ui) == ["map"], "Map mode is the only lit button")
+	harness.check(_visible_tools(ui) == ["map"], "the Map tool box replaces the Buildings one")
+	harness.check(events == ["building", "map"], "the switch emitted exactly one new mode")
+
+	# A genuine deselect: clicking the lit button again. The engine flips the
+	# button's own status to false and reports toggled(false) with the group
+	# empty - that one must still reach the editor as "".
+	ui._mode_buttons["map"].set_pressed(false)
+	harness.check(editor.mode == "", "clicking the lit mode button again deselects")
+	harness.check(_lit(ui).is_empty(), "no button stays lit after a real deselect")
+	harness.check(_visible_tools(ui).is_empty(),
+			"with no mode selected the left panel keeps only History and the log")
+	harness.check(events == ["building", "map", ""], "the real deselect still reports the empty mode")
+
+	ui.mode_requested.disconnect(recorder)
+
+
+# ---------------------------------------------------------------------------
+# The other reported bug: right-clicking a building did nothing. A building is
+# picked by its SELECTION FOOTPRINT - the circle the game itself click-selects
+# with (collisions/select -> Collisions.setup -> selection_position/radius) -
+# not by its origin. A tower's ring (r=45) sits 20px above the origin and its
+# art reaches ~68px above it, so an origin-only pick could never reach the body
+# a zoomed-in author is aiming at, and refused in silence.
+# ---------------------------------------------------------------------------
+
+func _test_building_footprint_pick(harness, editor) -> void:
+	var map: Node = editor.map_root
+	var ui = ui_of(editor)
+	var tower = map.get_node_or_null("buildings/blue/tower")
+	harness.check(tower != null, "the scaffold has a pre-placed tower to grab")
+	if tower == null:
+		return
+	var select = tower.get_node_or_null("collisions/select")
+	harness.check(select != null
+			and tower.get("selection_radius") == select.shape.radius
+			and tower.get("selection_position") == select.position,
+			"installing a map fills selection data from collisions/select (the game's own click-select numbers)")
+
+	var team: Node2D = tower.get_parent()
+	var canvas: Transform2D = editor.get_viewport().get_canvas_transform()
+	var xform: Transform2D = LaneLogic.viewport_to_node_xform(team, canvas)
+	var ring_center: Vector2 = xform * (tower.position + tower.get("selection_position"))
+	var origin_viewport: Vector2 = xform * tower.position
+	# Straight above the ring, 6px outside it: further from the origin than the
+	# 48px pick reach the origin-only pick measured, but ON the footprint the
+	# author sees and the game click-selects with.
+	var press: Vector2 = ring_center + Vector2(0.0, -(select.shape.radius * absf(xform.get_scale().x) + 6.0))
+	harness.check(origin_viewport.distance_to(press) > 48.0,
+			"the press is out of reach of the tower origin (%.1f px) - the old pick refused it"
+			% origin_viewport.distance_to(press))
+
+	ui.mode_requested.emit("building")
+	editor._handle_drag_input(_rclick(press, true), "building")
+	harness.check(not editor._drag.is_empty(), "right-clicking the tower's selection ring grabs it")
+	if editor._drag.is_empty():
+		return
+	harness.check(editor._drag.get("node") == tower, "the ring grab picked the tower, not a neighbour")
+	harness.check(float(editor._drag.get("distance", INF)) <= 48.0,
+			"the ring grab lands inside the 48px pick reach (%.1f px)" % float(editor._drag.get("distance", 0.0)))
+
+	# A footprint grab must not teleport the origin under the cursor on the first
+	# motion: the grabbed point keeps its offset, and the snap still runs on the
+	# origin, so a moved building lands where a freshly placed one would have.
+	var before: Vector2 = tower.position
+	var pushed: Vector2 = press + Vector2(64.0, 0.0)
+	editor._handle_drag_input(_motion(pushed, MOUSE_BUTTON_MASK_RIGHT), "building")
+	var after: Vector2 = tower.position
+	harness.check(after != before, "dragging from the ring moves the tower")
+	harness.check(int(after.x) % 64 == 0 and int(after.y) % 64 == 0,
+			"a ring drag still lands on the 64px grid (%s)" % after)
+	var expected: Vector2 = LaneLogic.snap_point(
+			before + xform.affine_inverse().basis_xform(pushed - press))
+	harness.check(after == expected,
+			"a ring drag moves the tower by the drag delta, not by the grab offset (%s vs %s)"
+			% [after, expected])
+
+	editor._handle_drag_input(_rclick(pushed, false), "building")
+	harness.check(editor._drag.is_empty(), "release commits the ring drag")
+	editor.undo()
+	harness.check(tower.position == before, "the ring drag is one undo action")
+
+	# The silent half of the bug: a press that reaches nothing now says how far
+	# off it was, in the same viewport pixels the pick compared.
+	var log_before: String = ui._log.text
+	var far := Vector2(4.0, 4.0)
+	editor._handle_drag_input(_rclick(far, true), "building")
+	harness.check(editor._drag.is_empty(), "a press far from every building still grabs nothing")
+	harness.check(ui._log.text != log_before and ui._log.text.contains("px away"),
+			"a near-miss press names the distance instead of refusing in silence")
+	editor._handle_drag_input(_rclick(far, false), "building")
+
+	editor._unhandled_input(_key(KEY_ESCAPE))
+	harness.check(editor.mode == "", "Escape still exits Buildings mode")
 
 
 # ---------------------------------------------------------------------------

@@ -40,8 +40,10 @@ const LaneOverlay = preload("res://map/editor/lane_overlay.gd")
 const GAME_SCENE := "res://game.tscn"
 const DEFAULT_LANE_COLOR := Color(1, 1, 1, 0.196078)
 const FALLBACK_MAP_SIZE := Vector2(1056, 1056)
-# How close a right-press must land on a lane point or building to grab it, in
-# VIEWPORT pixels so the pick radius stays stable at any zoom level.
+# How close a right-press must land on a lane point, or on the SELECTION
+# FOOTPRINT of a building (see _buildings_pick), to grab it. Measured in
+# VIEWPORT pixels so the pick reach stays stable at any zoom level; a
+# building's footprint is scaled into viewport space by the same factor.
 const MOVE_PICK_RADIUS := 48.0
 
 # Typed on purpose: the tool getters (ui.selected_tile(), lane_overlay.lane) are
@@ -57,8 +59,10 @@ var mode := ""  # "", "lane", "building", "map", "tile"  ("map" is UI-only)
 var _stroke: Dictionary = {}  # {"layer": TileMapLayer, "erase": bool, "undo": {}}
 # The active right-press drag of the current tool mode: {"kind": "lane"|
 # "building", "node", "index": int (lane points), "orig": Vector2 (the node-local
-# start position)}. One drag is exactly one undo action; no motion = no history
-# entry. Lanes mode drags lane points only, Buildings mode buildings only.
+# start position), "grab_offset": Vector2 (buildings only: orig minus the press
+# point, so a footprint grab does not jump the origin under the cursor).
+# One drag is exactly one undo action; no motion = no history entry.
+# Lanes mode drags lane points only, Buildings mode buildings only.
 var _drag: Dictionary = {}
 
 # Editor-only visibility bookkeeping: hidden flags are serialized into the
@@ -119,6 +123,7 @@ func _install_map(map: Node2D, display_name := "untitled") -> void:
 	# layer.get_owner() as BaseMap, and save-time packing serializes only owned
 	# nodes. (A loaded .tscn already owns its subtree; a fresh scaffold does not.)
 	MapStore.own_tree(map, map)
+	_sync_building_selection(map)
 	_hide_for_editing(map)
 	undo_redo.clear_history()
 
@@ -530,6 +535,10 @@ func _place_building(viewport_pos: Vector2) -> void:
 	undo_redo.add_undo_method(team_node.remove_child.bind(building))
 	undo_redo.add_undo_method(building.queue_free)
 	undo_redo.commit_action()
+	# A freshly placed building has to be grabbable by the same footprint rules
+	# as the pre-placed ones (its selection data arrives with the scene, not
+	# with a spawn call).
+	_sync_one_building_selection(building)
 	# Consistent with _hide_for_editing so save-time restore finds it.
 	_hide_node(building.get_node_or_null("hud"))
 
@@ -608,14 +617,25 @@ func _handle_drag_input(event: InputEvent, kind: String) -> void:
 # castle/barracks included). Kind scoping is the M6 owner decision: a Lanes-mode
 # right-press never grabs a building and a Buildings-mode one never grabs a lane
 # point. Position-only: names, team metadata, subtypes and point counts never
-# change; re-parenting is out of scope (M5 fixed decision 3).
+# change; re-parenting is out of scope (M5 fixed decision 3). What the pick
+# MEASURES is the thing's own reach - a lane point, or a building's selection
+# footprint - so the grab follows what the author sees, and a press that misses
+# says by how much instead of doing nothing.
 func _grab_move_target(viewport_pos: Vector2, kind: String) -> void:
 	var best: Dictionary = {}
 	if kind == "lane":
 		_lanes_pick(viewport_pos, best)
 	elif kind == "building":
 		_buildings_pick(viewport_pos, best)
-	if best.is_empty() or best.get("distance", INF) > MOVE_PICK_RADIUS:
+	if best.is_empty():
+		return
+	if best.get("distance", INF) > MOVE_PICK_RADIUS:
+		# The silent refusal read as "right-click is broken": name the nearest
+		# thing of this kind and the reach, both in the same viewport pixels the
+		# pick compared. Same gate for both kinds, same wording shape.
+		ui.log_line("Nearest %s is %.0f px away - right-click within %.0f px to grab it." % [
+				"lane point" if kind == "lane" else "building",
+				float(best.get("distance", 0.0)), MOVE_PICK_RADIUS])
 		return
 	# NO UndoRedo call at grab, on purpose: a press may be released without any
 	# motion, and the runtime UndoRedo has NO cancel_action() to abandon an open
@@ -630,6 +650,18 @@ func _grab_move_target(viewport_pos: Vector2, kind: String) -> void:
 		lane_overlay.queue_redraw()
 	ui.log_line("Grabbed %s (drag to move; release to commit)." % _node_label(
 			best.get("node"), int(best.get("index", -1))))
+	if best.get("kind") == "building":
+		# A footprint grab may land on the art or the selection ring, far from
+		# the origin _drag_move snaps. Remember how far from the origin the press
+		# landed so the first motion keeps the building where the author grabbed
+		# it instead of teleporting its origin under the cursor. Lane drags are
+		# untouched: a lane point IS its own position.
+		var grabbed: Node2D = best.get("node") as Node2D
+		var grabbed_team: CanvasItem = grabbed.get_parent() as CanvasItem
+		if grabbed_team != null:
+			var press_local: Vector2 = LaneLogic.viewport_to_node_xform(
+					grabbed_team, get_viewport().get_canvas_transform()).affine_inverse() * viewport_pos
+			best["grab_offset"] = grabbed.position - press_local
 	_drag = best
 
 
@@ -655,7 +687,58 @@ func _lanes_pick(viewport_pos: Vector2, best: Dictionary) -> void:
 				best["distance"] = distance
 
 
-# Nearest building under buildings/<team>; its position is team-node-local.
+# The game already knows how big a unit is to a CLICK: Collisions.setup() is
+# the loader the game itself uses at spawn, and it copies collisions/select's
+# position + circle radius into unit.selection_position / unit.selection_radius,
+# which is exactly what in-game click-select reads (utils/util.gd
+# click_distance(), controls/selection.gd). setup() is a pure data copy - no
+# quadtree, no WorldState write, no map_manager - so the editor may run it on
+# its own copy of a map without touching gameplay. Selection data is filled in
+# when a map is installed (_install_map) and when a building is placed, which
+# is how every building enters this editor; picking only reads the fields.
+func _sync_building_selection(map: Node) -> void:
+	if map == null:
+		return
+	var buildings_node: Node = map.get_node_or_null("buildings")
+	if buildings_node == null:
+		return
+	for team in buildings_node.get_children():
+		for building in team.get_children():
+			_sync_one_building_selection(building)
+
+
+func _sync_one_building_selection(building: Node) -> void:
+	# Not a Unit-derived building (no selection fields to fill): skip.
+	if building.get("selection_radius") == null:
+		return
+	Collisions.setup(building)
+
+
+# Selection data, read defensively: an editor map can hold a Node2D that is not
+# a Unit, and Unit's own defaults are untyped (int) until setup() runs.
+func _selection_offset(node: Node) -> Vector2:
+	var raw: Variant = node.get("selection_position")
+	if raw is Vector2:
+		return raw as Vector2
+	return Vector2.ZERO
+
+
+func _selection_radius(node: Node) -> float:
+	var raw: Variant = node.get("selection_radius")
+	if raw is float:
+		return raw as float
+	if raw is int:
+		return float(raw)
+	return 0.0
+
+
+# Nearest building under buildings/<team>, measured against its SELECTION
+# FOOTPRINT, not its origin: a tower's selection circle (radius 45) is centred
+# 20px above the node origin and its art reaches ~68px above it, so a
+# distance-to-origin pick could only ever grab a spot near the origin. That is
+# why right-clicking the visible body of a zoomed-in building did nothing. The
+# stored position stays the node origin, so dragging and 64px snapping behave
+# exactly as before.
 func _buildings_pick(viewport_pos: Vector2, best: Dictionary) -> void:
 	var buildings_node := map_root.get_node_or_null("buildings")
 	if buildings_node == null:
@@ -665,13 +748,23 @@ func _buildings_pick(viewport_pos: Vector2, best: Dictionary) -> void:
 		if team_item == null:
 			continue
 		var xform := LaneLogic.viewport_to_node_xform(team_item, get_viewport().get_canvas_transform())
+		var scale := absf(xform.get_scale().x)
 		for building in team.get_children():
-			var distance := (xform * (building as Node2D).position).distance_to(viewport_pos)
+			var node := building as Node2D
+			if node == null:
+				continue
+			var footprint_center: Vector2 = xform * (node.position + _selection_offset(node))
+			var footprint_radius: float = maxf(0.0, _selection_radius(node) * scale)
+			# Distance to the footprint EDGE, floored at 0: pressing inside the
+			# selection circle is a hit, pressing outside it must still land
+			# within the pick budget. Same viewport space as the lane pick, so
+			# zoom cannot change which thing is nearest.
+			var distance := maxf(0.0, footprint_center.distance_to(viewport_pos) - footprint_radius)
 			if distance < best.get("distance", INF):
 				best["kind"] = "building"
 				best["node"] = building
 				best["index"] = -1
-				best["orig"] = (building as Node2D).position
+				best["orig"] = node.position
 				best["distance"] = distance
 
 
@@ -692,8 +785,14 @@ func _drag_move(viewport_pos: Vector2) -> void:
 		lane_overlay.queue_redraw()
 	else:
 		var team = node.get_parent()
-		var local := LaneLogic.snap_point(
-				LaneLogic.viewport_to_node_xform(team as CanvasItem, canvas).affine_inverse() * viewport_pos)
+		var press_local: Vector2 = LaneLogic.viewport_to_node_xform(
+				team as CanvasItem, canvas).affine_inverse() * viewport_pos
+		# The offset the grab recorded (Vector2.ZERO for an origin press, and for
+		# every lane drag): the point that was grabbed follows the cursor, while
+		# the snap still runs on the ORIGIN, so a moved building lands on the
+		# same 64px grid a freshly placed one would.
+		var grab_offset: Vector2 = _drag.get("grab_offset", Vector2.ZERO)
+		var local := LaneLogic.snap_point(press_local + grab_offset)
 		(node as Node2D).set("position", local)
 
 

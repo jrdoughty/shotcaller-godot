@@ -23,7 +23,12 @@ STEP_TIMEOUT="${STEP_TIMEOUT:-180}"
 # file than the reporter: a runner that crashes, hangs, or is bypassed cannot
 # fake a green result without editing both files. Bump this when you add
 # tests — the suite will fail with the actual count until you do.
-EXPECTED_UNIT_TESTS="${EXPECTED_UNIT_TESTS:-781}"
+# Bumped 781 -> 810 for the two windowed-mode defect regressions in
+# test_map_editor_tools.gd: the mode buttons driven through a real Button press
+# (clicking a mode left the left tool panel with no tool box), and Buildings
+# mode picking a building by its selection footprint instead of its origin
+# (right-clicking a building's body did nothing, in silence).
+EXPECTED_UNIT_TESTS="${EXPECTED_UNIT_TESTS:-810}"
 
 # Godot binary: argument > GODOT env var > "godot" on PATH.
 GODOT="${1:-${GODOT:-godot}}"
