@@ -384,8 +384,30 @@ func set_mode_active(mode_name: String, active: bool) -> void:
 	for m in _mode_buttons:
 		_mode_buttons[m].set_pressed_no_signal(shown and m == mode_name)
 
+# A ButtonGroup press unpresses the PREVIOUS button before the newly pressed
+# one reports its own toggled(true): the engine's BaseButton::_unpress_group()
+# walks the group's other buttons and calls set_pressed(false) on each, and the
+# new button is already pressed by then (its own status is set before that
+# loop, on both the click path and the set_pressed() path). So the outgoing
+# mode's toggled(false) is a GROUP SWITCH, not a request to drop every mode:
+# emitting "" here made _set_mode("") run re-entrantly, and its
+# set_mode_active(previous, false) cleared the button that was mid-press, so
+# the incoming mode's own toggled arrived as toggled(false) and the editor
+# landed in no mode at all with an empty left panel.
+# ButtonGroup.get_pressed_button() is a live scan of the group (Godot
+# 4.7.2-stable base_button.cpp:723-730 - a loop over buttons returning the first
+# is_pressed(), with no cached "current" member to go stale), so a non-null
+# result means some mode is still selected and the off-signal is just the
+# switch. A real deselect (click the lit mode again, Escape, hotkey on the lit
+# mode) finds the group empty and still reports "".
 func _on_mode_toggled(active: bool, mode_name: String) -> void:
-	mode_requested.emit(mode_name if active else "")
+	if active:
+		mode_requested.emit(mode_name)
+		return
+	var group: ButtonGroup = _mode_buttons[mode_name].button_group
+	if group != null and group.get_pressed_button() != null:
+		return
+	mode_requested.emit("")
 
 
 # ---------------------------------------------------------------------------
